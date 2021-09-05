@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <cmath>
 #include <functional>
+#include <concepts>
+#include <iostream>
 
 using u32 = std::uint32_t;
 using u64 = std::uint64_t;
@@ -23,7 +25,7 @@ struct time_range {
 namespace currency::data::provider {
 
 struct currency_details {
-    u64 price;
+    double price;
 };
 
 template <typename type>
