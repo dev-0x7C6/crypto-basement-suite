@@ -9,4 +9,4 @@ consteval auto test_concept(auto impl) { return false; }
 
 static_assert(test_concept(stub{}));
 
-}
+} // namespace currency::data::provider::tests

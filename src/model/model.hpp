@@ -11,9 +11,25 @@ using u64 = std::uint64_t;
 static_assert(sizeof(std::chrono::time_point<std::chrono::system_clock>) == 8);
 
 namespace cbs {
-using time = std::chrono::time_point<std::chrono::system_clock>;
+
+struct time_prototype {
+    u64 timestamp{};
+
+    constexpr time_prototype() = default;
+    constexpr time_prototype(const u64 timestamp)
+            : timestamp(timestamp) {}
+
+    constexpr auto operator+=(const std::chrono::seconds period) {
+        timestamp += period.count();
+        return *this;
+    }
+
+    constexpr auto operator<=>(const time_prototype &) const = default;
+};
+
+using time = time_prototype;
 static_assert(sizeof(time) == 8);
-}
+} // namespace cbs
 
 struct time_range {
     cbs::time begin;
@@ -34,4 +50,3 @@ concept model = requires(type object) {
 };
 
 } // namespace currency::data::provider
-
