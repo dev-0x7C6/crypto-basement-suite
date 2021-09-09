@@ -1,8 +1,9 @@
 #pragma once
 
 #include <chrono>
-#include <cstdint>
 #include <cmath>
+#include <compare>
+#include <cstdint>
 #include <functional>
 
 using u32 = std::uint32_t;
@@ -39,7 +40,7 @@ struct time_range {
 namespace currency::data::provider {
 
 struct currency_details {
-    u64 price;
+    float price;
 };
 
 template <typename type>
