@@ -1,39 +1,34 @@
 #pragma once
 
 #include <chrono>
-#include <cstdint>
 #include <cmath>
-#include <functional>
-#include <concepts>
 #include <iostream>
+#include <compare>
+#include <cstdint>
+#include <functional>
+#include <list>
+#include <tuple>
+#include <vector>
+#include <string>
+#include <memory>
+#include <model/types.hpp>
 
-using u32 = std::uint32_t;
-using u64 = std::uint64_t;
-
-static_assert(sizeof(std::chrono::time_point<std::chrono::system_clock>) == 8);
-
-namespace cbs {
-using time = std::chrono::time_point<std::chrono::system_clock>;
-static_assert(sizeof(time) == 8);
-}
-
-struct time_range {
-    cbs::time begin;
-    cbs::time end;
-};
-
-namespace currency::data::provider {
-
-struct currency_details {
-    double price;
-};
+namespace provider {
 
 template <typename type>
 concept model = requires(type object) {
-    { object.value(cbs::time{}) } -> std::same_as<currency_details>;
-    { object.range() } -> std::same_as<time_range>;
+    { object.value(types::time_point{}) } -> std::same_as<types::currency>;
+    { object.range() } -> std::same_as<types::time_range>;
     { object.range_changed(std::function<void()>()) } -> std::same_as<void>;
 };
 
-} // namespace currency::data::provider
+} // namespace provider
 
+namespace indicator {
+    template <typename type>
+    concept indicator_model = requires(type object) {
+        { object.compute_value(types::time_point{})} -> std::same_as<types::indicator_value>;
+        { object.configure(std::list<std::tuple<std::string, std::string>>())} -> std::same_as<void>;
+        { object.load_data(types::currency{})} -> std::same_as<void>;
+    };
+}

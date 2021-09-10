@@ -1,21 +1,34 @@
+#pragma once
+
 #include "model.hpp"
 
-namespace currency::data::provider {
+#include <vector>
+#include <chrono>
+
+using namespace std::chrono_literals;
+
+namespace provider {
 
 struct stub {
-    auto value(const cbs::time t) const noexcept {
-        currency_details ret{};
-        ret.price = std::sin(std::chrono::duration_cast<std::chrono::milliseconds>(t.time_since_epoch()).count()/1000.0);
-        return ret;
+    constexpr auto value(const types::time_point t) noexcept -> types::currency {
+        return {std::abs(std::sin(m_sin_steps += 0.001f) * 1000.0f), t.point};
     }
 
-    constexpr auto range() const noexcept {
-        time_range range{};
-        return range;
+    constexpr auto range() const noexcept -> types::time_range {
+        return {1630948469, 1630970069};
     }
 
     constexpr auto range_changed(std::function<void()> &&) noexcept {
     }
+
+private:
+    float m_sin_steps{};
 };
 
+constexpr auto iterate(provider::model auto model, std::function<void(const types::time_point, const types::currency value)> &&callable, const std::chrono::seconds resolution = 1s) noexcept {
+    for (auto i = model.range().begin; i <= model.range().end; i += resolution) {
+        callable(i, model.value(i));
+    }
 }
+
+} // namespace provider
