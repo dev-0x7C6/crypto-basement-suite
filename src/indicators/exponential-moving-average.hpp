@@ -15,14 +15,14 @@ struct exponential_moving_average {
         if (is_empty(data_set) || data_set.size() < m_settings.frame_size.value())
             return {};
 
-        if (data_set.back().time_stamp < t.point)
+        if (data_set.back().time_stamp < t)
             return {};
 
         std::size_t current_window_fill = 0;
         double current_window_ema_sum = 0.0;
 
         for (auto data_i = data_set.rbegin(); data_i != data_set.rend(); ++data_i) {
-            if (data_i->time_stamp <= t.point) {
+            if (data_i->time_stamp <= t) {
                 current_window_fill++;
                 current_window_ema_sum = data_i->price * k_param + current_window_ema_sum * (1 - k_param);
                 if (current_window_fill == m_settings.frame_size.value()) {

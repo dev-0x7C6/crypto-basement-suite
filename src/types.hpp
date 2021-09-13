@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <optional>
 #include <ranges>
@@ -48,7 +49,7 @@ struct indicator_settings {
 
 struct currency {
     float price;
-    u64 time_stamp;
+    time_point time_stamp;
 };
 
 struct indicator_value {

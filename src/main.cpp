@@ -27,7 +27,7 @@ auto main(int, char **) -> int {
     //generate data
     provider::iterate(
         stub, [&MA_ind, &EMA_ind](const types::time_point t, const types::currency curr_data) {
-            std::cout << "p:" << curr_data.price << ", " << curr_data.time_stamp;
+            std::cout << "p:" << curr_data.price << ", " << curr_data.time_stamp.point;
             // load data point into indicator
             MA_ind.load_data(curr_data);
             EMA_ind.load_data(curr_data);
