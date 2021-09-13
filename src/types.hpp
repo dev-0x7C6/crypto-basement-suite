@@ -52,7 +52,7 @@ struct currency {
 };
 
 struct indicator_value {
-    float value;
+    float value{};
 };
 
 } // namespace types

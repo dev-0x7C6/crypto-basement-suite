@@ -2,8 +2,18 @@
 
 #include <model/model.hpp>
 
-#include <memory>
 #include <list>
+#include <memory>
+#include <vector>
+
+template <typename type>
+concept container_with_size = requires(type object) {
+    { object.size() } -> std::same_as<std::size_t>;
+};
+
+auto is_empty(container_with_size auto x) noexcept {
+    return x.size() == 0;
+}
 
 namespace indicator {
 

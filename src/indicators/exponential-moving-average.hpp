@@ -12,12 +12,15 @@ struct exponential_moving_average {
     };
 
     auto compute_value(const types::time_point t) noexcept -> types::indicator_value {
-        if (data_set.size() == 0 || data_set.size() < m_settings.frame_size.value())
-            return {static_cast<types::indicator_value>(0)};
+        if (is_empty(data_set) || data_set.size() < m_settings.frame_size.value())
+            return {};
+
         if (data_set.back().time_stamp < t.point)
-            return {static_cast<types::indicator_value>(0)};
+            return {};
+
         std::size_t current_window_fill = 0;
-        double current_window_ema_sum = 0;
+        double current_window_ema_sum = 0.0;
+
         for (auto data_i = data_set.rbegin(); data_i != data_set.rend(); ++data_i) {
             if (data_i->time_stamp <= t.point) {
                 current_window_fill++;
@@ -27,37 +30,39 @@ struct exponential_moving_average {
                 }
             }
         }
-        return {static_cast<types::indicator_value>(0)};
+
+        return {};
     }
 
 
     // this function is too similar for every indicators, going to make it a free function
     auto load_data(types::currency data) noexcept -> void {
-        if (data_set.size() != 0) {
-            if (data_set.back().time_stamp <= data.time_stamp) {
-                data_set.push_back(data);
-                return;
-            }
-            for (auto data_i = data_set.rbegin(); data_i != data_set.rend(); ++data_i) {
-                if (data_i->time_stamp <= data.time_stamp) {
-                    if (data_i->time_stamp == data.time_stamp) {
-                        data_i->price = data.price;
-                        return;
-                    } else {
-                        data_set.insert(data_i.base() + 1, data);
-                        return;
-                    }
-                }
-            }
-        } else {
+        if (is_empty(data_set)) {
             data_set.push_back(data);
             return;
+        }
+
+        if (data_set.back().time_stamp <= data.time_stamp) {
+            data_set.push_back(data);
+            return;
+        }
+
+        for (auto data_i = data_set.rbegin(); data_i != data_set.rend(); ++data_i) {
+            if (data_i->time_stamp <= data.time_stamp) {
+                if (data_i->time_stamp == data.time_stamp) {
+                    data_i->price = data.price;
+                    return;
+                } else {
+                    data_set.insert(data_i.base() + 1, data);
+                    return;
+                }
+            }
         }
     }
 
 private:
     types::indicator_settings m_settings;
-    double k_param;
+    double k_param{};
     std::vector<types::currency> data_set;
 };
 
