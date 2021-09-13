@@ -1,6 +1,8 @@
+#include <indicators/exponential-moving-average.hpp>
+#include <indicators/indicators.hpp>
+#include <indicators/moving-average.hpp>
 #include <model/model.hpp>
 #include <model/stub.hpp>
-#include <model/indicators.hpp>
 #include <model/tests.hpp>
 #include <model/types.hpp>
 

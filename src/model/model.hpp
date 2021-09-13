@@ -19,11 +19,3 @@ concept model = requires(type object) {
 
 } // namespace provider
 
-namespace indicator {
-template <typename type>
-concept indicator_model = requires(type object) {
-    { object.compute_value(types::time_point{}) } -> std::same_as<types::indicator_value>;
-    { object.configure(std::list<std::tuple<std::string, std::string>>()) } -> std::same_as<void>;
-    { object.load_data(types::currency{}) } -> std::same_as<void>;
-};
-} // namespace indicator
