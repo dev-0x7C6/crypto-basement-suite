@@ -1,11 +1,11 @@
 #pragma once
 
 #include <cstdint>
-#include <list>
+#include <optional>
 #include <ranges>
 #include <string>
-#include <tuple>
 
+using u32 = std::uint64_t;
 using u64 = std::uint64_t;
 
 namespace types {
@@ -40,6 +40,10 @@ struct time_range {
     constexpr auto to_range() {
         return std::ranges::iota_view{begin.point, end.point};
     };
+};
+
+struct indicator_settings {
+    std::optional<u32> frame_size;
 };
 
 struct currency {

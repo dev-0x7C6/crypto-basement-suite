@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <functional>
 
-#include <model/types.hpp>
+#include <types.hpp>
 
 namespace provider {
 

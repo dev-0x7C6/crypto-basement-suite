@@ -4,7 +4,7 @@
 #include <model/model.hpp>
 #include <model/stub.hpp>
 #include <model/tests.hpp>
-#include <model/types.hpp>
+#include <types.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -23,10 +23,8 @@ auto main(int, char **) -> int {
 
     indicator::moving_average MA_ind{};
     indicator::exponential_moving_average EMA_ind{};
-    MA_ind.configure(std::list<std::tuple<std::string, std::string>>());
-    EMA_ind.configure(std::list<std::tuple<std::string, std::string>>());
-    //generate data
 
+    //generate data
     provider::iterate(
         stub, [&MA_ind, &EMA_ind](const types::time_point t, const types::currency curr_data) {
             std::cout << "p:" << curr_data.price << ", " << curr_data.time_stamp;

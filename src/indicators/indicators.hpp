@@ -3,6 +3,7 @@
 #include <model/model.hpp>
 
 #include <memory>
+#include <list>
 
 namespace indicator {
 
