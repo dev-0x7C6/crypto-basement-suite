@@ -11,11 +11,11 @@ namespace provider {
 
 struct stub {
     constexpr auto value(const types::time_point t) noexcept -> types::currency {
-        return {std::abs(std::sin(m_sin_steps += 0.001f) * 1000.0f)};
+        return {std::abs(std::sin(m_sin_steps += 0.001f) * 1000.0f), t.point};
     }
 
     constexpr auto range() const noexcept -> types::time_range {
-        return {1630948469, 1630958499};
+        return {1630948469, 1630970069};
     }
 
     constexpr auto range_changed(std::function<void()> &&) noexcept {

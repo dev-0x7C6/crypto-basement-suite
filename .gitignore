@@ -1,2 +1,9 @@
+*.cmake
+Makefile
+build/*
+CMakeCache.txt
+src/model/CMakeFiles/*
 .directory
 *.user
+CMakeFiles/*
+src/CMakeFiles/*

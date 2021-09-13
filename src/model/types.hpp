@@ -1,7 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <list>
 #include <ranges>
+#include <string>
+#include <tuple>
 
 using u64 = std::uint64_t;
 
@@ -41,6 +44,11 @@ struct time_range {
 
 struct currency {
     float price;
+    u64 time_stamp;
+};
+
+struct indicator_value {
+    float value;
 };
 
 } // namespace types
