@@ -2,6 +2,8 @@
 
 #include "indicators.hpp"
 
+#include <ranges>
+
 namespace indicator {
 
 struct moving_average {
@@ -19,13 +21,16 @@ struct moving_average {
 
         std::size_t current_window_fill = 0;
         float current_window_sum = 0.0;
-        for (auto data_i = data_set.rbegin(); data_i != data_set.rend(); ++data_i) {
-            if (data_i->time_stamp <= t) {
-                current_window_fill++;
-                current_window_sum += data_i->price;
-                if (current_window_fill == m_settings.frame_size) {
-                    return {current_window_sum / m_settings.frame_size.value()};
-                }
+
+        for (auto &&sample : data_set | std::views::reverse) {
+            if (t.after(sample.time_stamp))
+                break;
+
+            current_window_fill++;
+            current_window_sum += sample.price;
+
+            if (current_window_fill == m_settings.frame_size) {
+                return {current_window_sum / m_settings.frame_size.value()};
             }
         }
 

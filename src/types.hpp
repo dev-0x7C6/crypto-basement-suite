@@ -28,6 +28,10 @@ struct time_point {
     }
 
     constexpr auto operator<=>(const time_point &) const = default;
+
+    constexpr auto after(const time_point &rhs) const noexcept -> bool {
+        return *this < rhs;
+    }
 };
 
 struct time_range {
