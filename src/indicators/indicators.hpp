@@ -24,11 +24,8 @@ concept indicator_model = requires(type object) {
     { object.load_data(types::currency{}) } -> std::same_as<void>;
 };
 
-struct price_velocity {
-    // http://thepatternsite.com/velocity.html
-};
-
 // https://starofmysore.com/top-crypto-trading-technical-indicators-to-use-on-primexbt/
+// Some of his favored technical techniques are moving average divergence/convergence (MACD), on-balance volume and relative strength index (RSI).
 struct bollinger_bands {
 };
 
