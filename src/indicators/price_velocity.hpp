@@ -5,9 +5,9 @@
 #include <ranges>
 
 namespace indicator {
-
-struct moving_average {
-    moving_average(types::indicator_settings settings = {})
+//https://www.investopedia.com/articles/technical/081501.asp
+struct price_velocity {
+    price_velocity(types::indicator_settings settings = {})
             : m_settings(settings) {
         m_settings.frame_size = m_settings.frame_size.value_or(25);
     }
@@ -19,21 +19,20 @@ struct moving_average {
         if (data_set.back().time_stamp < t)
             return {};
 
+        auto current_price = data_set.back();
         std::size_t current_window_fill = 0;
-        float current_window_sum = 0.0;
-
         for (auto &&sample : data_set | std::views::reverse) {
             if (t.after(sample.time_stamp))
                 break;
-
+            // save the ,,current'' price for the searched time t
+            if (current_window_fill == 0){
+                current_price = sample;
+            }
             current_window_fill++;
-            current_window_sum += sample.price;
-
             if (current_window_fill == m_settings.frame_size) {
-                return {current_window_sum / m_settings.frame_size.value()};
+                return {current_price.price - sample.price};
             }
         }
-
         return {};
     }
 
