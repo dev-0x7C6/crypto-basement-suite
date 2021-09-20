@@ -25,11 +25,27 @@ concept indicator_model = requires(type object) {
 };
 
 // https://starofmysore.com/top-crypto-trading-technical-indicators-to-use-on-primexbt/
+// useless by itself, but with different indicators forms a strategy
 // Some of his favored technical techniques are moving average divergence/convergence (MACD), on-balance volume and relative strength index (RSI).
 struct bollinger_bands {
 };
 
+// indicator with memory, need to rethink how to use it with current approach
+// RSI 
 struct relative_strength_index {
 };
+
+// similat to the above but without memory
+struct stochastic_oscilator {
+// https://www.investopedia.com/terms/s/stochasticoscillator.asp
+}
+
+//MACD 
+struct ma_convergence_divergence {
+
+}
+
+//Fibonacci Retracement
+// indicator which works for the whole range , taking maximum and minimum in the window and computing the bands for the price
 
 } // namespace indicator
