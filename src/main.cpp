@@ -4,6 +4,8 @@
 #include <indicators/price_velocity.hpp>
 #include <indicators/rate_of_change.hpp>
 #include <indicators/relative_strength_index.hpp>
+#include <indicators/stochastic_oscillator.hpp>
+#include <indicators/ma_convergence_divergence.hpp>
 #include <model/model.hpp>
 #include <model/stub.hpp>
 #include <model/tests.hpp>
@@ -29,9 +31,12 @@ auto main(int, char **) -> int {
     indicator::price_velocity PV_ind{};
     indicator::rate_of_change ROC_ind{};
     indicator::relative_strength_index RSI_ind{};
+    indicator::stochastic_oscillator SO_ind{};
+    indicator::ma_convergence_divergence MAcd_ind{};
     //generate data
     provider::iterate(
-        stub, [&MA_ind, &EMA_ind, &PV_ind, &ROC_ind, &RSI_ind](const types::time_point t, const types::currency curr_data) {
+        stub, [&MA_ind, &EMA_ind, &PV_ind, &ROC_ind, &RSI_ind, &SO_ind, &MAcd_ind](const types::time_point t, const types::currency curr_data) {
+            std::cout << "---------------------------------------------------------------------" << std::endl;
             std::cout << "p:" << curr_data.price << ", " << curr_data.time_stamp.point;
             // load data point into indicator
             MA_ind.load_data(curr_data);
@@ -39,9 +44,13 @@ auto main(int, char **) -> int {
             PV_ind.load_data(curr_data);
             ROC_ind.load_data(curr_data);
             RSI_ind.load_data(curr_data);
+            SO_ind.load_data(curr_data);
+            MAcd_ind.load_data(curr_data);
             // compute indicator value for any time stamp from loaded data
-            std::cout << " MA: " << MA_ind.compute_value(t).value << " EMA: " << EMA_ind.compute_value(t).value << " PV: "
-            << PV_ind.compute_value(t).value << " ROC: " << ROC_ind.compute_value(t).value << " RSI: " << RSI_ind.compute_value(t).value  << std::endl;
+            std::cout << std::endl << " MA: " << MA_ind.compute_value(t).value << " EMA: " << EMA_ind.compute_value(t).value << " PV: "
+            << PV_ind.compute_value(t).value << " ROC: " << ROC_ind.compute_value(t).value << std::endl <<
+            " RSI: " << RSI_ind.compute_value(t).value << " SO: " << SO_ind.compute_value(t).value << " MAcd: " << MAcd_ind.compute_value(t).value 
+            << std::endl;
         },
         60s);
 

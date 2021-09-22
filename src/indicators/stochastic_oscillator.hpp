@@ -1,19 +1,16 @@
 #pragma once
 
 #include "indicators.hpp"
-
+#include <limits>
 #include <ranges>
 #include <iostream>
 
 namespace indicator {
-//https://www.investopedia.com/terms/p/pricerateofchange.asp
-// additional parameters:
-// https://en.wikipedia.org/wiki/Relative_strength_index
-// https://www.macroption.com/rsi-calculation/
-struct relative_strength_index {
-    relative_strength_index(types::indicator_settings settings = {})
+// https://www.investopedia.com/terms/s/stochasticoscillator.asp
+struct stochastic_oscillator {
+    stochastic_oscillator(types::indicator_settings settings = {})
             : m_settings(settings) {
-        m_settings.frame_size = m_settings.frame_size.value_or(14);
+        m_settings.frame_size = m_settings.frame_size.value_or(5);
     }
 
     auto compute_value(const types::time_point t) noexcept -> types::indicator_value {
@@ -23,36 +20,32 @@ struct relative_strength_index {
         if (data_set.back().time_stamp < t)
             return {};
 
+        auto current_price = data_set.back();
         std::size_t current_window_fill = 0;
         bool frame_will_not_be_exceded = false;
-        float ratio_of_change = 0;
-        float previous_gain_sum = 0;
-        float previous_loss_sum = 0;
+        float period_maximum_price = 0;
+        float period_minimum_price = std::numeric_limits<float>::max();
         for (auto sample = data_set.rbegin(); sample != data_set.rend(); ++sample) {
             if (t.after(sample->time_stamp))
                 break;
-            // if current point is closer then indicator value should not be computed
-            // because we need to substract prtevious point with current to get the rate of change,
-            // we need one data point earlier than the frame size, so that why +1
+            // if current point is closer than window length then indicator value should not be computed
             if(!frame_will_not_be_exceded) {
-                if(data_set.rend() - sample < m_settings.frame_size.value_or(0) + 1) {
+                if(data_set.rend() - sample < m_settings.frame_size.value_or(0)) {
                     return {};
                 }
                 else {
+                    current_price.price = sample->price;
                     frame_will_not_be_exceded = true;
                 }
             }
-            // first value of RSI indicator value need to be computed differently
-            ratio_of_change = ((sample->price - (sample + 1)->price)/(sample + 1)->price);
-            if(ratio_of_change >= 0)
-                previous_gain_sum += ratio_of_change;
-            else
-                previous_loss_sum += -ratio_of_change;
+            if(period_maximum_price < sample->price)
+                period_maximum_price = sample->price;
+            if(period_minimum_price > sample->price)
+                period_minimum_price = sample->price;
             if(current_window_fill == m_settings.frame_size.value_or(0))
             {
-                if (previous_loss_sum > 0 && m_settings.frame_size.value_or(0) > 0)
-                    return {static_cast<float>(100.0-(100.0/(1.0+((previous_gain_sum/static_cast<float>(m_settings.frame_size.value()))/
-                            (previous_loss_sum/static_cast<float>(m_settings.frame_size.value()))))))};
+                if (period_maximum_price - period_minimum_price != 0 && m_settings.frame_size.value_or(0) > 0)
+                    return {static_cast<float>(100.0*((current_price.price-period_minimum_price)/(period_maximum_price - period_minimum_price)))};
                 else
                     return {100.0};
             }

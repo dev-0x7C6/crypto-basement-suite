@@ -30,15 +30,6 @@ concept indicator_model = requires(type object) {
 struct bollinger_bands {
 };
 
-// similat to the above but without memory
-struct stochastic_oscilator {
-// https://www.investopedia.com/terms/s/stochasticoscillator.asp
-};
-
-//MACD 
-struct ma_convergence_divergence {
-
-};
 
 //Fibonacci Retracement
 // indicator which works for the whole range , taking maximum and minimum in the window and computing the bands for the price

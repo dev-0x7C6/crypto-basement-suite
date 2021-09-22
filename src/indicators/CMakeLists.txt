@@ -5,4 +5,6 @@ add_library(cbs-indicators INTERFACE
     price_velocity.hpp
     rate_of_change.hpp
     relative_strength_index.hpp
+    stochastic_oscillator.hpp
+    ma_convergence_divergence.hpp
 )
