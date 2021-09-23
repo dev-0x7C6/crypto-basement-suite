@@ -16,6 +16,7 @@
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
+#include <range/v3/all.hpp>
 
 using namespace std::chrono_literals;
 
@@ -30,6 +31,11 @@ auto main(int, char **) -> int {
     provider::iterate(stub, [](const types::time_point t, const types::currency value) {
         spdlog::debug("price: {}, timestamp: {}", value.price, t.point);
     });
+
+    indicator::moving_average MA_ind_debug{};
+    for (auto &&sub : stub.range().to_range() | ::ranges::views::chunk(25)) {
+        spdlog::info("MA: {}", MA_ind_debug.compute(sub, stub).value);
+    }
 
     indicator::moving_average MA_ind{};
     indicator::exponential_moving_average EMA_ind{};

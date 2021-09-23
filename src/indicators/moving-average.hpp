@@ -2,7 +2,9 @@
 
 #include "indicators.hpp"
 
-#include <ranges>
+#include <range/v3/all.hpp>
+#include <spdlog/spdlog.h>
+#include <algorithm>
 
 namespace indicator {
 
@@ -10,6 +12,12 @@ struct moving_average {
     moving_average(types::indicator_settings settings = {})
             : m_settings(settings) {
         m_settings.frame_size = m_settings.frame_size.value_or(25);
+    }
+
+    auto compute(const ranges::take_view<auto> &view, provider::model auto &model) noexcept -> types::indicator_value {
+        //wip
+        const auto sum = ::ranges::accumulate(view | ranges::views::transform([&model](auto &&val) { return model.value(val).price; }), 0);
+        return {static_cast<float>(sum) / static_cast<int>(view.size())};
     }
 
     auto compute_value(const types::time_point t) noexcept -> types::indicator_value {
@@ -22,7 +30,7 @@ struct moving_average {
         std::size_t current_window_fill = 0;
         float current_window_sum = 0.0;
 
-        for (auto &&sample : data_set | std::views::reverse) {
+        for (auto &&sample : data_set | ranges::views::reverse) {
             if (t.after(sample.time_stamp))
                 break;
 
