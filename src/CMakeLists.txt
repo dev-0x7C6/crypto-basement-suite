@@ -2,6 +2,7 @@ add_subdirectory(indicators)
 add_subdirectory(model)
 
 find_package(range-v3)
+find_package(spdlog)
 
 add_executable(cbs "main.cpp")
 
@@ -11,4 +12,5 @@ target_link_libraries(cbs
     range-v3::meta
     range-v3::concepts
     range-v3::range-v3
+    spdlog::spdlog
 )

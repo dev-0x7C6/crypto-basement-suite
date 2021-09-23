@@ -14,16 +14,21 @@
 #include <chrono>
 #include <iostream>
 
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+
 using namespace std::chrono_literals;
 
 auto main(int, char **) -> int {
     provider::stub stub{};
 
+    auto console = spdlog::stdout_color_mt("console");
+
     for (auto &&t : stub.range().to_range())
-        std::cout << "p:" << stub.value(t).price << ", " << t << std::endl;
+        spdlog::debug("price: {}, timestamp: {}", stub.value(t).price, t);
 
     provider::iterate(stub, [](const types::time_point t, const types::currency value) {
-        std::cout << "p:" << value.price << ", " << t.point << std::endl;
+        spdlog::debug("price: {}, timestamp: {}", value.price, t.point);
     });
 
     indicator::moving_average MA_ind{};
@@ -35,9 +40,9 @@ auto main(int, char **) -> int {
     indicator::ma_convergence_divergence MAcd_ind{};
     //generate data
     provider::iterate(
-        stub, [&MA_ind, &EMA_ind, &PV_ind, &ROC_ind, &RSI_ind, &SO_ind, &MAcd_ind](const types::time_point t, const types::currency curr_data) {
-            std::cout << "---------------------------------------------------------------------" << std::endl;
-            std::cout << "p:" << curr_data.price << ", " << curr_data.time_stamp.point;
+        stub, [&](const types::time_point t, const types::currency curr_data) {
+            spdlog::info("---------------------------------------------------------------------");
+            spdlog::info("price: {}, timestamp: {}", curr_data.price, t.point);
             // load data point into indicator
             MA_ind.load_data(curr_data);
             EMA_ind.load_data(curr_data);
@@ -47,10 +52,16 @@ auto main(int, char **) -> int {
             SO_ind.load_data(curr_data);
             MAcd_ind.load_data(curr_data);
             // compute indicator value for any time stamp from loaded data
-            std::cout << std::endl << " MA: " << MA_ind.compute_value(t).value << " EMA: " << EMA_ind.compute_value(t).value << " PV: "
-            << PV_ind.compute_value(t).value << " ROC: " << ROC_ind.compute_value(t).value << std::endl <<
-            " RSI: " << RSI_ind.compute_value(t).value << " SO: " << SO_ind.compute_value(t).value << " MAcd: " << MAcd_ind.compute_value(t).value 
-            << std::endl;
+            const auto MA = MA_ind.compute_value(t).value;
+            const auto EMA = EMA_ind.compute_value(t).value;
+            const auto PV = PV_ind.compute_value(t).value;
+            const auto ROC = ROC_ind.compute_value(t).value;
+            const auto RSI = RSI_ind.compute_value(t).value;
+            const auto SO = SO_ind.compute_value(t).value;
+            const auto MAcd = MAcd_ind.compute_value(t).value;
+
+            spdlog::info("MA: {}, EMA: {}, PV: {}, ROC: {}", MA, EMA, PV, ROC);
+            spdlog::info("RSI: {}, SO: {}, MAcd: {}", RSI, SO, MAcd);
         },
         60s);
 
