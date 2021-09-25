@@ -10,7 +10,7 @@ using namespace std::chrono_literals;
 namespace provider {
 
 struct stub {
-    constexpr auto value(const types::time_point t) noexcept -> types::currency {
+    constexpr auto value(const types::time_point t) const noexcept -> types::currency {
         return {std::abs(std::sin((t.point % 1000) * 0.0001f) * 1000.0f), t.point};
     }
 

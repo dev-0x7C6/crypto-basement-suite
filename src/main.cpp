@@ -32,10 +32,11 @@ auto main(int, char **) -> int {
         spdlog::debug("price: {}, timestamp: {}", value.price, t.point);
     });
 
-    indicator::moving_average MA_ind_debug{};
-    for (auto &&sub : stub.range().to_range() | ::ranges::views::chunk(25)) {
-        spdlog::info("MA: {}", MA_ind_debug.compute(sub, stub).value);
-    }
+    using namespace ranges;
+
+    indicator::moving_average MA_stride_test{};
+    for (auto &&subrange : stub.range().to_range() | views::stride(60) | views::sliding(25))
+        spdlog::info("MA: {}", MA_stride_test.compute(subrange, stub).value);
 
     indicator::moving_average MA_ind{};
     indicator::exponential_moving_average EMA_ind{};

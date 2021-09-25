@@ -14,9 +14,18 @@ struct moving_average {
         m_settings.frame_size = m_settings.frame_size.value_or(25);
     }
 
-    auto compute(const ranges::take_view<auto> &view, provider::model auto &model) noexcept -> types::indicator_value {
-        //wip
-        const auto sum = ::ranges::accumulate(view | ranges::views::transform([&model](auto &&val) { return model.value(val).price; }), 0);
+    // needs outside moving data provide i.e.
+    // (time range) | (skip every 60 sec) | (create buffers that sliding data by 1 in 25 window size)
+    // model_range  | views::stride(60)   | views::sliding(25)
+    // pros: multiple algos might benefit from same local data
+    //
+    // should we introduce struct that will enforce special type on caller side?
+    // i.e. struct sliding_range{ range member }
+    // in order to enforce some awareness on caller side
+    //
+
+    constexpr auto compute(::ranges::range auto &&view, provider::model auto &&model) noexcept -> types::indicator_value {
+        const auto sum = ::ranges::accumulate(view_on_price(view, model), 0.0f);
         return {static_cast<float>(sum) / static_cast<int>(view.size())};
     }
 

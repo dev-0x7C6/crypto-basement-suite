@@ -43,7 +43,7 @@ struct time_range {
     time_point end{};
 
     constexpr auto to_range() {
-        return ranges::iota_view{begin.point, end.point};
+        return ::ranges::iota_view{begin.point, end.point};
     };
 };
 
