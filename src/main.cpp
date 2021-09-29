@@ -35,8 +35,9 @@ auto main(int, char **) -> int {
     using namespace ranges;
 
     indicator::moving_average MA_stride_test{};
-    for (auto &&subrange : stub.range().to_range() | views::stride(60) | views::sliding(25))
+    for (auto &&subrange : stub.range().to_range() | views::stride(60) | views::sliding(25)) {
         spdlog::info("MA: {}", MA_stride_test.compute(subrange, stub).value);
+    }
 
     indicator::moving_average MA_ind{};
     indicator::exponential_moving_average EMA_ind{};
