@@ -13,6 +13,11 @@ struct rate_of_change {
         m_settings.frame_size = m_settings.frame_size.value_or(25);
     }
 
+    constexpr auto compute(::ranges::range auto &&view, provider::model auto &&model) noexcept -> types::indicator_value {
+        auto view_prices = view_on_price(view, model);
+        return {static_cast<types::indicator_value>((*(view_prices.end()-1) - *view_prices.begin())/(*view_prices.begin())*100.0)};
+    };
+
     auto compute_value(const types::time_point t) noexcept -> types::indicator_value {
         if (is_empty(data_set) || data_set.size() < m_settings.frame_size)
             return {};

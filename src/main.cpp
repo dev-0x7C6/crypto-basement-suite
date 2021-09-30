@@ -35,9 +35,15 @@ auto main(int, char **) -> int {
     using namespace ranges;
 
     indicator::moving_average MA_stride_test{};
-    for (auto &&subrange : stub.range().to_range() | views::stride(60) | views::sliding(25))
+    indicator::exponential_moving_average EMA_stride_test{};
+    indicator::price_velocity PV_stride_test{};
+    indicator::rate_of_change ROC_stride_test{};
+    for (auto &&subrange : stub.range().to_range() | views::stride(60) | views::sliding(25)) {
         spdlog::info("MA: {}", MA_stride_test.compute(subrange, stub).value);
-
+        spdlog::info("EMA: {}", EMA_stride_test.compute(subrange, stub).value);
+        spdlog::info("PV: {}", PV_stride_test.compute(subrange, stub).value);   
+        spdlog::info("ROC: {}", ROC_stride_test.compute(subrange, stub).value);
+    }
     indicator::moving_average MA_ind{};
     indicator::exponential_moving_average EMA_ind{};
     indicator::price_velocity PV_ind{};

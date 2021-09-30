@@ -1,6 +1,7 @@
 #pragma once
 
 #include "indicators/indicators.hpp"
+#include <iostream>
 
 namespace indicator {
 
@@ -9,6 +10,16 @@ struct exponential_moving_average {
             : m_settings(settings) {
         m_settings.frame_size = m_settings.frame_size.value_or(25);
         k_param = 2.0 / static_cast<double>(m_settings.frame_size.value() + 1);
+    };
+
+
+    constexpr auto compute(::ranges::range auto &&view, provider::model auto &&model) noexcept -> types::indicator_value {
+        float current_window_ema_sum = 0;
+        double k_param_ref = (2.0 / (static_cast<int>(view.size()) + 1));
+        for(auto it : view_on_price(view, model) | ranges::views::reverse | ranges::views::transform( [&current_window_ema_sum, &k_param_ref](auto &&price) -> float {
+                                                                                            current_window_ema_sum = price * k_param_ref + current_window_ema_sum * (1 - k_param_ref);
+                                                                                            return current_window_ema_sum;})) {}   
+        return {static_cast<types::indicator_value>(current_window_ema_sum)};
     };
 
     auto compute_value(const types::time_point t) noexcept -> types::indicator_value {
