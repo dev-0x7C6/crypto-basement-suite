@@ -18,10 +18,9 @@ auto is_empty(container_with_size auto x) noexcept {
 namespace indicator {
 
 template <typename type>
-concept indicator_model = requires(type object) {
-    { object.compute_value(types::time_point{}) } -> std::same_as<types::indicator_value>;
-    { object.configure(std::list<std::tuple<std::string, std::string>>()) } -> std::same_as<void>;
-    { object.load_data(types::currency{}) } -> std::same_as<void>;
+concept indicator_concept = requires(type object) {
+    { object.algorithm_name } -> std::convertible_to<std::string>;
+    { object.compute() } -> std::same_as<types::indicator_value>;
 };
 
 // https://starofmysore.com/top-crypto-trading-technical-indicators-to-use-on-primexbt/

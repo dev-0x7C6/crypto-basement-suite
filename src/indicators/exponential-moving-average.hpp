@@ -1,80 +1,19 @@
 #pragma once
 
-#include "indicators/indicators.hpp"
-#include <iostream>
+#include "indicators.hpp"
 
 namespace indicator {
-
 struct exponential_moving_average {
-    exponential_moving_average(types::indicator_settings settings = {})
-            : m_settings(settings) {
-        m_settings.frame_size = m_settings.frame_size.value_or(25);
-        k_param = 2.0 / static_cast<double>(m_settings.frame_size.value() + 1);
-    };
-
+    static constexpr auto algorithm_name = "EMA";
 
     constexpr auto compute(::ranges::range auto &&view, provider::model auto &&model) noexcept -> types::indicator_value {
         float current_window_ema_sum = 0;
         double k_param_ref = (2.0 / (static_cast<int>(view.size()) + 1));
-        for(auto it : view_on_price(view, model) | ranges::views::reverse | ranges::views::transform( [&current_window_ema_sum, &k_param_ref](auto &&price) -> float {
+        for (auto it : view_on_price(view, model) | ranges::views::reverse | ranges::views::transform([&](auto &&price) -> float {
                                                                                             current_window_ema_sum = price * k_param_ref + current_window_ema_sum * (1 - k_param_ref);
-                                                                                            return current_window_ema_sum;})) {}   
-        return {static_cast<types::indicator_value>(current_window_ema_sum)};
+                                                                                            return current_window_ema_sum; })) {}
+        return {current_window_ema_sum};
     };
-
-    auto compute_value(const types::time_point t) noexcept -> types::indicator_value {
-        if (is_empty(data_set) || data_set.size() < m_settings.frame_size.value())
-            return {};
-
-        if (data_set.back().time_stamp < t)
-            return {};
-
-        std::size_t current_window_fill = 0;
-        double current_window_ema_sum = 0.0;
-
-        for (auto data_i = data_set.rbegin(); data_i != data_set.rend(); ++data_i) {
-            if (data_i->time_stamp <= t) {
-                current_window_fill++;
-                current_window_ema_sum = data_i->price * k_param + current_window_ema_sum * (1 - k_param);
-                if (current_window_fill == m_settings.frame_size.value()) {
-                    return {static_cast<types::indicator_value>(current_window_ema_sum)};
-                }
-            }
-        }
-
-        return {};
-    }
-
-
-    // this function is too similar for every indicators, going to make it a free function
-    auto load_data(types::currency data) noexcept -> void {
-        if (is_empty(data_set)) {
-            data_set.push_back(data);
-            return;
-        }
-
-        if (data_set.back().time_stamp <= data.time_stamp) {
-            data_set.push_back(data);
-            return;
-        }
-
-        for (auto data_i = data_set.rbegin(); data_i != data_set.rend(); ++data_i) {
-            if (data_i->time_stamp <= data.time_stamp) {
-                if (data_i->time_stamp == data.time_stamp) {
-                    data_i->price = data.price;
-                    return;
-                } else {
-                    data_set.insert(data_i.base() + 1, data);
-                    return;
-                }
-            }
-        }
-    }
-
-private:
-    types::indicator_settings m_settings;
-    double k_param{};
-    std::vector<types::currency> data_set;
 };
 
 } // namespace indicator
