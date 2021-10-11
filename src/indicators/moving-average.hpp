@@ -19,7 +19,7 @@ struct moving_average {
 
     constexpr auto compute(::ranges::forward_range auto &&view, provider::model auto &&model) noexcept -> types::indicator_value {
         const auto sum = ::ranges::accumulate(view_on_price(view, model), 0.0f);
-        return {sum / static_cast<int>(view.size())};
+        return {sum / size(view)};
     }
 
 private:

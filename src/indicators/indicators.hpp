@@ -11,8 +11,12 @@ concept container_with_size = requires(type object) {
     { object.size() } -> std::same_as<std::size_t>;
 };
 
-auto is_empty(container_with_size auto x) noexcept {
+constexpr auto is_empty(container_with_size auto x) noexcept {
     return x.size() == 0;
+}
+
+constexpr auto size(::ranges::range auto v) noexcept {
+    return static_cast<std::size_t>(v.size());
 }
 
 namespace indicator {
