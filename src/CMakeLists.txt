@@ -1,9 +1,7 @@
+add_subdirectory(cli)
 add_subdirectory(indicators)
 add_subdirectory(model)
-
-find_package(range-v3)
-find_package(spdlog)
-find_package(benchmark)
+add_subdirectory(networking)
 
 add_executable(cbs "main.cpp")
 add_executable(cbs-benchmark "benchmark.cpp")
@@ -21,6 +19,7 @@ target_link_libraries(cbs-benchmark
 target_link_libraries(cbs
     cbs-indicators
     cbs-model
+    cbs-networking
     range-v3::meta
     range-v3::concepts
     range-v3::range-v3
