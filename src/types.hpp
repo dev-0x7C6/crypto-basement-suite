@@ -50,6 +50,7 @@ struct time_range {
 
 struct indicator_settings {
     std::optional<u32> frame_size;
+    std::optional<float> macd_ema_percentage;
 };
 
 struct currency {
