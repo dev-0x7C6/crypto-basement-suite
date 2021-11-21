@@ -6,7 +6,7 @@
 
 namespace indicator {
 struct price_velocity {
-    static constexpr auto algorithm_name = "PV";
+    static constexpr auto algorithm_type = type::price_velocity;
 
     constexpr auto compute(::ranges::range auto &&view, provider::model auto &&model) noexcept -> types::indicator_value {
         auto view_prices = view_on_price(view, model);

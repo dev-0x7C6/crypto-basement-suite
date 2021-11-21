@@ -4,7 +4,7 @@
 
 namespace indicator {
 struct exponential_moving_average {
-    static constexpr auto algorithm_name = "EMA";
+    static constexpr auto algorithm_type = type::exponential_moving_average;
 
     constexpr auto compute(::ranges::range auto &&view, provider::model auto &&model) noexcept -> types::indicator_value {
         auto current_window_ema_sum = 0.0f;

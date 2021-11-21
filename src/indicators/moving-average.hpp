@@ -5,7 +5,7 @@
 namespace indicator {
 
 struct moving_average {
-    static constexpr auto algorithm_name = "MA";
+    static constexpr auto algorithm_type = type::moving_average;
 
     // needs outside moving data provide i.e.
     // (time range) | (skip every 60 sec) | (create buffers that sliding data by 1 in 25 window size)
@@ -21,8 +21,6 @@ struct moving_average {
         const auto sum = ::ranges::accumulate(view_on_price(view, model), 0.0f);
         return {sum / size(view)};
     }
-
-private:
 };
 
 } // namespace indicator
