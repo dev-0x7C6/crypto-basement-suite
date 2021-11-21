@@ -48,30 +48,19 @@ auto main(int argc, char **argv) -> int {
     indicator::stochastic_oscillator SO_stride_test{};
     indicator::ma_convergence_divergence MAcd_stride_test{};
 
-    std::vector<types::indicator_value> MA_values;
-    std::vector<types::indicator_value> EMA_values;
-    std::vector<types::indicator_value> PV_values;
-    std::vector<types::indicator_value> ROC_values;
+    indicator::indicator_results results;
 
     for (auto &&subrange : stub.range().to_range() | views::stride(60) | views::sliding(25)) {
-        const auto MA_value = MA_stride_test.compute(subrange, stub).value;
-        const auto EMA_value = EMA_stride_test.compute(subrange, stub).value;
-        const auto PV_value = PV_stride_test.compute(subrange, stub).value;
-        const auto ROC_value = ROC_stride_test.compute(subrange, stub).value;
+        results.collect(indicator::type::moving_average, MA_stride_test.compute(subrange, stub));
+        results.collect(indicator::type::exponential_moving_average, EMA_stride_test.compute(subrange, stub));
+        results.collect(indicator::type::price_velocity, PV_stride_test.compute(subrange, stub));
+        results.collect(indicator::type::rate_of_change, ROC_stride_test.compute(subrange, stub));
+        results.collect(indicator::type::relative_strength_index, RSI_stride_test.compute(subrange, stub));
+        results.collect(indicator::type::stochastic_oscillator, SO_stride_test.compute(subrange, stub));
+        results.collect(indicator::type::moving_average_convergence_divergence, MAcd_stride_test.compute(subrange, stub));
 
-        MA_values.emplace_back(MA_value);
-        EMA_values.emplace_back(EMA_value);
-        PV_values.emplace_back(PV_value);
-        ROC_values.emplace_back(ROC_value);
-
-        spdlog::info("MA: {}", MA_value);
-        spdlog::info("EMA: {}", EMA_value);
-        spdlog::info("PV: {}", PV_value);
-        spdlog::info("ROC: {}", ROC_value);
-
-        spdlog::info("RSI: {}", RSI_stride_test.compute(subrange, stub).value);
-        spdlog::info("SO: {}", SO_stride_test.compute(subrange, stub).value);
-        spdlog::info("MACD: {}", MAcd_stride_test.compute(subrange, stub).value);
+        for (auto &&type : indicator::types)
+            spdlog::info("{}: {}", to_string(type), results.last(type).value);
     }
 
     return 0;
