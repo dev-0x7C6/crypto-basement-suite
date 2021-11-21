@@ -3,8 +3,8 @@
 #include <range/v3/all.hpp>
 #include <types.hpp>
 
-#include <indicators/exponential-moving-average.hpp>
-#include <indicators/moving-average.hpp>
+#include <indicators/exponential_moving_average.hpp>
+#include <indicators/moving_average.hpp>
 #include <indicators/price_velocity.hpp>
 #include <indicators/rate_of_change.hpp>
 

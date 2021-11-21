@@ -1,11 +1,12 @@
-#include <indicators/exponential-moving-average.hpp>
 #include <indicators/indicators.hpp>
-#include <indicators/moving-average.hpp>
+#include <indicators/exponential_moving_average.hpp>
+#include <indicators/moving_average_convergence_divergence.hpp>
+#include <indicators/moving_average.hpp>
 #include <indicators/price_velocity.hpp>
 #include <indicators/rate_of_change.hpp>
 #include <indicators/relative_strength_index.hpp>
 #include <indicators/stochastic_oscillator.hpp>
-#include <indicators/ma_convergence_divergence.hpp>
+
 #include <model/model.hpp>
 #include <model/stub.hpp>
 #include <model/tests.hpp>

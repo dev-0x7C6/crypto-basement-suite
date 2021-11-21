@@ -1,1 +1,1 @@
-add_subdirectory(fear-and-greed)
+add_subdirectory(fear_and_greed)
