@@ -13,6 +13,8 @@ struct ma_convergence_divergence {
     ma_convergence_divergence(types::indicator_settings settings = {})
             : percentage(settings.macd_ema_percentage.value_or(0.6)) {}
 
+    static constexpr auto algorithm_type = type::moving_average_convergence_divergence;
+
     auto compute(::ranges::range auto &&view, provider::model auto &&model) noexcept -> types::indicator_value {
         int short_ema_start = size(view) - static_cast<float>(size(view)) * percentage;
         float k_param_long = (2.0 / (1.0 + size(view)));

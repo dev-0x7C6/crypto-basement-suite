@@ -10,6 +10,8 @@ namespace indicator {
 struct stochastic_oscillator {
     stochastic_oscillator() {}
 
+    static constexpr auto algorithm_type = type::stochastic_oscillator;
+
     auto compute(::ranges::range auto &&view, provider::model auto &&model) noexcept -> types::indicator_value {
         auto view_prices = view_on_price(view, model);
         float period_maximum_price = 0;

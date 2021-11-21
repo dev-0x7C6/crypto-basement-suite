@@ -13,6 +13,8 @@ namespace indicator {
 struct relative_strength_index {
     relative_strength_index() {}
 
+    static constexpr auto algorithm_type = type::relative_strength_index;
+
     //nature of the RSI demands one more data point than the window size! for example for RSI 20 you will need 21 data points
     auto compute(::ranges::range auto &&view, provider::model auto &&model) noexcept -> types::indicator_value {
         float ratio_of_change = 0;
