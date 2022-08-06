@@ -9,7 +9,7 @@ find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core Network REQUIRED)
 find_package(range-v3)
 find_package(spdlog)
 find_package(benchmark)
-
+find_package(CLI11)
 
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
