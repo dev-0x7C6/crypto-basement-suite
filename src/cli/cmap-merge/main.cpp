@@ -11,37 +11,7 @@
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
 
-using f32 = std::float_t;
-using u16 = std::uint16_t;
-using u32 = std::uint32_t;
-using u64 = std::uint64_t;
-using volume = std::pair<float, float>;
-
-constexpr auto magic = 0xfeca;
-constexpr auto ver = 1;
-
-struct header {
-    u16 magic{0xfeca};
-    u16 version{ver};
-    std::array<char, 64> symbols{};
-
-    constexpr bool operator<=>(const header &rhs) const = default;
-};
-
-struct sample {
-    u32 timestamp;
-    f32 open;
-    f32 high;
-    f32 low;
-    f32 close;
-    volume vol;
-    u32 trade_count;
-
-    constexpr auto operator<=>(const sample &rhs) const = default;
-};
-
-static_assert(sizeof(header) == 68);
-static_assert(sizeof(sample) == 32);
+#include <common.hpp>
 
 auto main(int argc, char **argv) -> int {
     CLI::App app("cmap merge tool");

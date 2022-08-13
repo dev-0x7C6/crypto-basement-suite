@@ -6,4 +6,5 @@ target_link_libraries(cbs-cmap-merge
     range-v3::concepts
     range-v3::range-v3
     spdlog::spdlog
+    cbs-common
 )

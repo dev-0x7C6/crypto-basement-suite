@@ -7,4 +7,5 @@ target_link_libraries(cbs-csv-converter
     range-v3::concepts
     range-v3::range-v3
     spdlog::spdlog
+    cbs-common
 )
