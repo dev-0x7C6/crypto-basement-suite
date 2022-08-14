@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <numeric>
 
 using s32 = std::int32_t;
 using s64 = std::int64_t;
@@ -21,13 +22,13 @@ struct header {
 };
 
 struct sample {
-    u32 timestamp;
-    f32 open;
-    f32 high;
-    f32 low;
-    f32 close;
-    volume vol;
-    u32 trade_count;
+    u32 timestamp{};
+    f32 open{std::numeric_limits<f32>::quiet_NaN()};
+    f32 high{std::numeric_limits<f32>::quiet_NaN()};
+    f32 low{std::numeric_limits<f32>::quiet_NaN()};
+    f32 close{std::numeric_limits<f32>::quiet_NaN()};
+    volume vol{std::numeric_limits<f32>::quiet_NaN(), std::numeric_limits<f32>::quiet_NaN()};
+    u32 trade_count{};
 
     constexpr auto operator<=>(const sample &) const noexcept = default;
 };
