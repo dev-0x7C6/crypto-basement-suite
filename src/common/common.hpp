@@ -33,6 +33,18 @@ struct sample {
     constexpr auto operator<=>(const sample &) const noexcept = default;
 };
 
+constexpr auto make_zeroed_sample() -> sample {
+    return {
+        .timestamp = 0,
+        .open = 0.0f,
+        .high = 0.0f,
+        .low = 0.0f,
+        .close = 0.0f,
+        .vol = {0.0f, 0.0f},
+        .trade_count = 0,
+    };
+}
+
 struct statistics {
     u64 empty{};
     u64 missing{};
