@@ -192,8 +192,8 @@ auto main(int argc, char **argv) -> int {
 
     std::ofstream output(output_file, std::ios::out | std::ios::binary);
 
-    std::sort(samples.begin(), samples.end(), [](auto &&rhs, auto &&lhs) {
-        return rhs.timestamp < lhs.timestamp;
+    std::sort(samples.begin(), samples.end(), [](auto &&lhs, auto &&rhs) {
+        return lhs.timestamp < rhs.timestamp;
     });
 
     stats.clones = samples.size();
@@ -203,7 +203,11 @@ auto main(int argc, char **argv) -> int {
     samples = fix(samples, stats);
 
     output.write(reinterpret_cast<const char *>(&head), sizeof(head));
-    output.write(reinterpret_cast<const char *>(samples.data()), samples.size() * sizeof(sample));
+
+    for (auto &&sample : samples) {
+        const auto fs = to_fs(sample);
+        output.write(reinterpret_cast<const char *>(&fs), sizeof(fs));
+    }
 
     spdlog::info("samples count: {}", samples.size());
     spdlog::info("samples size: {:.2f}MiB", samples.size() * sizeof(sample) / 1024.0 / 1024.0);
