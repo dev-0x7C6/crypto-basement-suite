@@ -1,73 +1,91 @@
+#include <curlpp/Easy.hpp>
+#include <curlpp/Options.hpp>
+#include <curlpp/cURLpp.hpp>
+#include <nlohmann/json.hpp>
+#include <range/v3/all.hpp>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/spdlog.h>
+
 #include <chrono>
-#include <iostream>
+#include <optional>
+#include <sstream>
 #include <vector>
 
 #include <types.hpp>
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#include <range/v3/all.hpp>
-#include <networking/downloader.hpp>
-
-#include <QCoreApplication>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QDateTime>
-
 using namespace ranges;
 using namespace std::chrono_literals;
+using namespace curlpp::options;
+using namespace nlohmann;
+
+auto request(const std::string &url) -> std::optional<std::string>
+
+{
+    using namespace curlpp;
+    using namespace curlpp::options;
+    try {
+        Cleanup cleanup;
+        Easy request;
+        request.setOpt<Url>(url);
+
+        std::stringstream stream;
+        stream << request;
+        return stream.str();
+    }
+
+    catch (RuntimeError &e) {
+        std::cout << e.what() << std::endl;
+        return {};
+    }
+
+    catch (LogicError &e) {
+        std::cout << e.what() << std::endl;
+        return {};
+    }
+
+    return {};
+}
 
 namespace fear_and_greed {
 
 struct info {
-    i32 value{};
+    std::string value;
     std::string classification;
-    types::time_point timestamp{};
-    types::time_point to_next_update{};
+    std::string timestamp;
+    std::string to_next_update;
 };
 
-auto info_from_json(const QJsonObject &object) noexcept {
-    info ret;
-    ret.value = object.value("value").toString().toInt();
-    ret.classification = object.value("value_classification").toString().toLower().toStdString();
-    ret.timestamp = object.value("timestamp").toString().toUInt();
-    ret.to_next_update = object.value("time_until_update").toString().toUInt();
+auto info_from_json(const json &v) noexcept {
+    info ret{};
+    ret.value = v.value("value", ret.value);
+    ret.classification = v.value("value_classification", ret.classification);
+    ret.timestamp = v.value("timestamp", ret.timestamp);
+    ret.to_next_update = v.value("time_until_update", ret.to_next_update);
     return ret;
 }
 
-auto generate(const QJsonObject &object) noexcept {
+auto to_info(const json &v) noexcept -> std::vector<info> {
+    if (!v.contains("data")) return {};
+
     std::vector<info> ret;
-    const auto array = object.value("data").toArray();
-    for (auto &&node : array)
-        ret.emplace_back(info_from_json(node.toObject()));
+    for (const auto &node : v["data"])
+        ret.emplace_back(info_from_json(node));
 
     return ret;
 }
-
 } // namespace fear_and_greed
 
 auto main(int argc, char **argv) -> int {
-    QCoreApplication application(argc, argv);
     auto console = spdlog::stdout_color_mt("console");
 
-    std::vector<fear_and_greed::info> info_table;
-
-    network::downloader dl;
-    dl.download({"https://api.alternative.me/fng/?limit=32"}, [&](const QByteArray &data) {
-        info_table = fear_and_greed::generate(QJsonDocument::fromJson(data).object());
-        application.quit();
-    });
-
-    application.exec();
+    const auto content = request("https://api.alternative.me/fng/?limit=32").value_or("");
+    const auto data = json::parse(content);
+    const auto table = fear_and_greed::to_info(data);
 
     spdlog::set_pattern("%v");
 
-    for (auto &&entry : info_table) {
-        auto date = QDateTime::fromSecsSinceEpoch(entry.timestamp);
-        auto date_str = date.toString("yyyy.MM.dd").toStdString();
-        spdlog::info("{}, {}: {}", date_str, entry.classification, entry.value);
-    }
+    for (auto &&entry : table)
+        spdlog::info("{}, {}: {}", entry.timestamp, entry.classification, entry.value);
 
     return 0;
 }
