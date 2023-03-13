@@ -1,16 +1,10 @@
 #pragma once
 
-#include <QNetworkAccessManager>
-#include <QUrl>
+#include <optional>
+#include <string>
 
 namespace network {
 
-class downloader {
-public:
-	void download(const QUrl &source, std::function<void(const QByteArray &)> &&callable);
-
-private:
-	QNetworkAccessManager m_manager;
-};
+auto request(const std::string &url) -> std::optional<std::string>;
 
 } // namespace network

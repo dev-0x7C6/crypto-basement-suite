@@ -1,16 +1,37 @@
 #include "downloader.hpp"
 
-#include <QNetworkReply>
+#include <curlpp/Easy.hpp>
+#include <curlpp/Options.hpp>
+#include <curlpp/cURLpp.hpp>
+
+#include <sstream>
 
 namespace network {
 
-void downloader::download(const QUrl &source, std::function<void(const QByteArray &)> &&callable) {
-	QNetworkRequest request(source);
-	auto reply = m_manager.get(request);
+auto request(const std::string &url) -> std::optional<std::string> {
+    using namespace curlpp;
+    using namespace curlpp::options;
+    try {
+        Cleanup cleanup;
+        Easy request;
+        request.setOpt<Url>(url);
 
-	QObject::connect(reply, &QNetworkReply::finished, [reply, callable{std::move(callable)}]() {
-		callable(reply->readAll());
-	});
+        std::stringstream stream;
+        stream << request;
+        return stream.str();
+    }
+
+    catch (RuntimeError &e) {
+        std::cout << e.what() << std::endl;
+        return {};
+    }
+
+    catch (LogicError &e) {
+        std::cout << e.what() << std::endl;
+        return {};
+    }
+
+    return {};
 }
 
 } // namespace network
