@@ -1,7 +1,7 @@
 #include <CLI/CLI.hpp>
 #include <fmt/format.h>
 #include <nlohmann/json.hpp>
-#include <range/v3/all.hpp>
+#include <range/v3/view/join.hpp>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
@@ -48,6 +48,12 @@ namespace response {
 using price = std::unordered_map<std::string, std::unordered_map<std::string, price>>;
 }
 
+template <typename T>
+auto get(const json &j, const std::string &key) -> std::optional<T> {
+    if (!j.contains(key)) return {};
+    return j[key].get<T>();
+}
+
 auto ask(const request::price &req) -> std::optional<response::price> {
     if (req.ids.empty()) return {};
     if (req.vs_currencies.empty()) return {};
@@ -69,16 +75,23 @@ auto ask(const request::price &req) -> std::optional<response::price> {
     const auto url = fmt::format("{}/simple/price?{}", api, url_params);
 
     const auto response = network::request(url);
+    const auto json = json::parse(response.value_or(""));
 
-    const auto j = json::parse(response.value_or(""));
+    if (json.contains("status") && json["status"].contains("error_code"))
+        return {};
 
     response::price ret;
 
-    for (auto it = j.begin(); it != j.end(); ++it) {
+    for (auto it = json.begin(); it != json.end(); ++it) {
+        const auto &key = it.key();
+        const auto &value = it.value();
         for (auto &&currency : req.vs_currencies) {
-            price v;
-            v.value = it.value().value<double>(currency, {});
-            ret[it.key()].emplace(currency, v);
+            price valuation;
+            valuation.value = get<double>(value, currency).value_or(0);
+            valuation.change_24h = get<double>(value, fmt::format("{}_24h_change", currency)).value_or(0);
+            valuation.market_cap = get<double>(value, fmt::format("{}_market_cap", currency)).value_or(0);
+            valuation.volume_24h = get<double>(value, fmt::format("{}_24h_vol", currency)).value_or(0);
+            ret[key].emplace(currency, valuation);
         }
     }
 
@@ -102,11 +115,12 @@ auto main(int argc, char **argv) -> int {
     price.ids = {"bitcoin", "cardano"};
     price.vs_currencies = {"usd", "btc", "pln"};
 
-    const auto response = coingecko::v3::ask(price).value();
+    const auto response = coingecko::v3::ask(price);
 
-    for (auto [asset, prices] : response)
-        for (auto &&[symbol, price] : prices)
-            spdlog::info("asset {}: value in {}: {}", asset, symbol, price.value);
+    if (const auto response = coingecko::v3::ask(price); response)
+        for (auto [asset, prices] : response.value())
+            for (auto &&[symbol, price] : prices)
+                spdlog::info("asset {}: value in {}: {}", asset, symbol, price.value);
 
     return 0;
 }
