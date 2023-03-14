@@ -112,15 +112,49 @@ auto main(int argc, char **argv) -> int {
     spdlog::set_pattern("%v");
 
     coingecko::v3::request::price price;
-    price.ids = {"bitcoin", "cardano"};
+    price.ids = {"bitcoin", "cardano", "polkadot", "cosmos"};
     price.vs_currencies = {"usd", "btc", "pln"};
 
     const auto response = coingecko::v3::ask(price);
+    if (!response) return 0;
 
-    if (const auto response = coingecko::v3::ask(price); response)
-        for (auto [asset, prices] : response.value())
-            for (auto &&[symbol, price] : prices)
-                spdlog::info("asset {}: value in {}: {}", asset, symbol, price.value);
+    // test input
+    std::vector<std::pair<std::string, double>> input{
+        {"bitcoin", 0.12},
+        {"bitcoin", 0.24},
+        {"bitcoin", 2.01},
+        {"cardano", 1203.50},
+        {"cardano", 1929.29},
+        {"cardano", 2384.03},
+        {"cosmos", 15.22},
+        {"cosmos", 20.21},
+        {"cosmos", 41.98},
+        {"polkadot", 129.23},
+        {"polkadot", 21.02},
+        {"polkadot", 99.99},
+    };
+
+    std::map<std::string, double> portfolio;
+    for (auto [symbol, balance] : input)
+        portfolio[symbol] += balance;
+
+    std::map<std::string, double> total;
+
+    for (auto &&[portfolio_asset, portfolio_ballance] : portfolio) {
+        spdlog::info("+ {} [{:f}]", portfolio_asset, portfolio_ballance);
+        for (auto &&[asset, prices] : response.value())
+            if (portfolio_asset == asset)
+                for (auto &&[currency, valuation] : prices) {
+                    const auto value = portfolio_ballance * valuation.value;
+                    spdlog::info(" -> /{}: {:f}", currency, value);
+                    total[currency] += value;
+                }
+        spdlog::info("");
+    }
+
+    spdlog::info("+ total");
+    for (auto &&[currency, valuation] : total)
+        spdlog::info(" -> /{}: {:f}", currency, valuation);
 
     return 0;
 }
