@@ -20,6 +20,14 @@ using namespace nlohmann;
 
 using strings = std::vector<std::string>;
 
+template <typename T>
+auto get(const json &j, const std::string &key) -> std::optional<T> {
+    try {
+        return j[key].get<T>();
+    } catch (...) {};
+    return {};
+}
+
 namespace coingecko {
 namespace v3 {
 
@@ -36,22 +44,16 @@ namespace request {
 struct price {
     strings ids; // assets
     strings vs_currencies; // usd
-    bool include_market_cap{true};
-    bool include_24hr_vol{true};
-    bool include_24hr_change{true};
-    bool include_last_updated_at{true};
+    bool include_market_cap{false};
+    bool include_24hr_vol{false};
+    bool include_24hr_change{false};
+    bool include_last_updated_at{false};
     uint precision{}; // 0 - 18;
 };
 } // namespace request
 
 namespace response {
 using price = std::unordered_map<std::string, std::unordered_map<std::string, price>>;
-}
-
-template <typename T>
-auto get(const json &j, const std::string &key) -> std::optional<T> {
-    if (!j.contains(key)) return {};
-    return j[key].get<T>();
 }
 
 auto ask(const request::price &req) -> std::optional<response::price> {
@@ -116,7 +118,10 @@ auto main(int argc, char **argv) -> int {
     price.vs_currencies = {"usd", "btc", "pln"};
 
     const auto response = coingecko::v3::ask(price);
-    if (!response) return 0;
+    if (!response) {
+        spdlog::error("invalid coingecko data");
+        return 1;
+    }
 
     // test input
     std::vector<std::pair<std::string, double>> input{
