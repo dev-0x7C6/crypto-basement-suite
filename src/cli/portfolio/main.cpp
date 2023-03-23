@@ -28,10 +28,51 @@ auto get(const json &j, const std::string &key) -> std::optional<T> {
     return {};
 }
 
-namespace coingecko {
-namespace v3 {
+namespace network::json {
+nlohmann::json request(const std::string &url) {
+    const auto response = network::request(url);
+    if (!response) return {};
+
+    return ::json::parse(response.value());
+}
+} // namespace network::json
+
+namespace coingecko::v3 {
 
 constexpr auto api = "https://api.coingecko.com/api/v3";
+
+namespace ping {
+auto ask() -> bool {
+    const auto url = fmt::format("{}/ping", api);
+    const auto json = network::json::request(url);
+
+    if (json.contains("status") && json["status"].contains("error_code"))
+        return false;
+
+    return json.contains("gecko_says");
+}
+} // namespace ping
+
+namespace simple::supported_vs_currencies {
+
+auto ask() -> std::vector<std::string> {
+    const auto url = fmt::format("{}/simple/supported_vs_currencies", api);
+    const auto json = network::json::request(url);
+
+    if (json.contains("status") && json["status"].contains("error_code"))
+        return {};
+
+    json.is_array();
+
+    std::vector<std::string> ret;
+    for (auto &&item : json)
+        ret.emplace_back(item);
+
+    return ret;
+}
+} // namespace simple::supported_vs_currencies
+
+namespace simple::price {
 
 struct price {
     double value{};
@@ -40,54 +81,46 @@ struct price {
     double change_24h{};
 };
 
-namespace request {
-struct price {
+struct options {
     strings ids; // assets
     strings vs_currencies; // usd
-    bool include_market_cap{false};
-    bool include_24hr_vol{false};
-    bool include_24hr_change{false};
-    bool include_last_updated_at{false};
+    bool include_market_cap{true};
+    bool include_24hr_vol{true};
+    bool include_24hr_change{true};
+    bool include_last_updated_at{true};
     uint precision{}; // 0 - 18;
 };
-} // namespace request
 
-namespace response {
-using price = std::unordered_map<std::string, std::unordered_map<std::string, price>>;
-}
+using summary = std::unordered_map<std::string, std::unordered_map<std::string, price>>;
 
-auto ask(const request::price &req) -> std::optional<response::price> {
-    if (req.ids.empty()) return {};
-    if (req.vs_currencies.empty()) return {};
+auto ask(const options &opts = {}) -> summary {
+    if (opts.ids.empty()) return {};
+    if (opts.vs_currencies.empty()) return {};
 
     constexpr std::array<char, 3> comma = {'%', '2', 'C'};
 
-    const auto ids = req.ids | views::join(comma) | to<std::string>();
-    const auto vs = req.vs_currencies | views::join(comma) | to<std::string>();
+    const auto ids = opts.ids | views::join(comma) | to<std::string>();
+    const auto vs = opts.vs_currencies | views::join(comma) | to<std::string>();
     const auto params = {
         fmt::format("ids={}", ids),
         fmt::format("vs_currencies={}", vs),
-        fmt::format("include_market_cap={}", req.include_market_cap),
-        fmt::format("include_24hr_vol={}", req.include_24hr_vol),
-        fmt::format("include_24hr_change={}", req.include_24hr_change),
-        fmt::format("include_last_updated_at={}", req.include_last_updated_at),
+        fmt::format("include_market_cap={}", opts.include_market_cap),
+        fmt::format("include_24hr_vol={}", opts.include_24hr_vol),
+        fmt::format("include_24hr_change={}", opts.include_24hr_change),
+        fmt::format("include_last_updated_at={}", opts.include_last_updated_at),
     };
 
     const auto url_params = params | views::join('&') | to<std::string>();
     const auto url = fmt::format("{}/simple/price?{}", api, url_params);
-
-    const auto response = network::request(url);
-    const auto json = json::parse(response.value_or(""));
+    const auto json = network::json::request(url);
 
     if (json.contains("status") && json["status"].contains("error_code"))
         return {};
 
-    response::price ret;
+    summary ret;
 
-    for (auto it = json.begin(); it != json.end(); ++it) {
-        const auto &key = it.key();
-        const auto &value = it.value();
-        for (auto &&currency : req.vs_currencies) {
+    for (auto &&[key, value] : json.items()) {
+        for (auto &&currency : opts.vs_currencies) {
             price valuation;
             valuation.value = get<double>(value, currency).value_or(0);
             valuation.change_24h = get<double>(value, fmt::format("{}_24h_change", currency)).value_or(0);
@@ -99,9 +132,9 @@ auto ask(const request::price &req) -> std::optional<response::price> {
 
     return ret;
 }
+} // namespace simple::price
 
-} // namespace v3
-} // namespace coingecko
+} // namespace coingecko::v3
 
 auto main(int argc, char **argv) -> int {
     CLI::App app("portfolio");
@@ -113,12 +146,12 @@ auto main(int argc, char **argv) -> int {
     auto console = spdlog::stdout_color_mt("console");
     spdlog::set_pattern("%v");
 
-    coingecko::v3::request::price price;
-    price.ids = {"bitcoin", "cardano", "polkadot", "cosmos"};
-    price.vs_currencies = {"usd", "btc", "pln"};
+    const auto summary = coingecko::v3::simple::price::ask({
+        .ids = {"bitcoin", "cardano", "polkadot", "cosmos", "avalanche-2", "near", "algorand", "solana"},
+        .vs_currencies = {"usd", "btc", "pln", "sats"},
+    });
 
-    const auto response = coingecko::v3::ask(price);
-    if (!response) {
+    if (summary.empty()) {
         spdlog::error("invalid coingecko data");
         return 1;
     }
@@ -147,7 +180,7 @@ auto main(int argc, char **argv) -> int {
 
     for (auto &&[portfolio_asset, portfolio_ballance] : portfolio) {
         spdlog::info("+ {} [{:f}]", portfolio_asset, portfolio_ballance);
-        for (auto &&[asset, prices] : response.value())
+        for (auto &&[asset, prices] : summary)
             if (portfolio_asset == asset)
                 for (auto &&[currency, valuation] : prices) {
                     const auto value = portfolio_ballance * valuation.value;
@@ -159,7 +192,7 @@ auto main(int argc, char **argv) -> int {
 
     spdlog::info("+ total");
     for (auto &&[currency, valuation] : total)
-        spdlog::info(" -> /{}: {:f}", currency, valuation);
+        spdlog::info(" -> /{}: {:.2f}", currency, valuation);
 
     return 0;
 }
