@@ -1,4 +1,6 @@
 *.cmake
+*.kdev4
+.kdev4
 Makefile
 build/*
 CMakeCache.txt
