@@ -51,17 +51,15 @@ nlohmann::json request(const std::string &url) {
     return json;
 }
 
-namespace ping {
-auto ask() -> bool {
+auto ping() -> bool {
     const auto url = fmt::format("{}/ping", api);
     const auto json = request(url);
     return !json.empty() && json.contains("gecko_says");
 }
-} // namespace ping
 
-namespace simple::supported_vs_currencies {
+namespace simple {
 
-auto ask() -> std::vector<std::string> {
+auto supported_vs_currencies() -> std::vector<std::string> {
     const auto url = fmt::format("{}/simple/supported_vs_currencies", api);
     const auto json = request(url);
     if (json.empty()) return {};
@@ -72,9 +70,9 @@ auto ask() -> std::vector<std::string> {
 
     return ret;
 }
-} // namespace simple::supported_vs_currencies
+} // namespace simple
 
-namespace simple::price {
+namespace simple {
 
 struct price {
     double value{};
@@ -95,7 +93,7 @@ struct options {
 
 using summary = std::unordered_map<std::string, std::unordered_map<std::string, price>>;
 
-auto ask(const options &opts = {}) -> summary {
+auto price(const options &opts = {}) -> summary {
     if (opts.ids.empty()) return {};
     if (opts.vs_currencies.empty()) return {};
 
@@ -121,7 +119,7 @@ auto ask(const options &opts = {}) -> summary {
 
     for (auto &&[key, value] : json.items()) {
         for (auto &&currency : opts.vs_currencies) {
-            price valuation;
+            struct price valuation;
             valuation.value = get<double>(value, currency).value_or(0);
             valuation.change_24h = get<double>(value, fmt::format("{}_24h_change", currency)).value_or(0);
             valuation.market_cap = get<double>(value, fmt::format("{}_market_cap", currency)).value_or(0);
@@ -132,7 +130,42 @@ auto ask(const options &opts = {}) -> summary {
 
     return ret;
 }
-} // namespace simple::price
+} // namespace simple
+
+namespace coins {
+
+struct coin {
+    std::string id;
+    std::string symbol;
+    std::string name;
+    std::unordered_map<std::string, std::string> platforms;
+};
+
+using coins = std::vector<coin>;
+
+auto list(bool include_platform = true) -> coins {
+    const auto url = fmt::format("{}/coins/list?include_platform={}", api, include_platform);
+    const auto json = request(url);
+    if (json.empty()) return {};
+
+    coins ret;
+    for (auto object : json) {
+        struct coin coin;
+        coin.id = get<std::string>(object, "id").value_or("");
+        coin.symbol = get<std::string>(object, "symbol").value_or("");
+        coin.name = get<std::string>(object, "name").value_or("");
+
+        if (object.contains("platforms"))
+            for (auto &&[platform, contract] : object["platforms"].items())
+                if (contract.is_string())
+                    coin.platforms[platform] = contract.get<std::string>();
+
+        ret.emplace_back(std::move(coin));
+    }
+
+    return ret;
+}
+} // namespace coins
 
 } // namespace coingecko::v3
 
@@ -146,7 +179,7 @@ auto main(int argc, char **argv) -> int {
     auto console = spdlog::stdout_color_mt("console");
     spdlog::set_pattern("%v");
 
-    const auto summary = coingecko::v3::simple::price::ask({
+    const auto summary = coingecko::v3::simple::price({
         .ids = {"bitcoin", "cardano", "polkadot", "cosmos", "avalanche-2", "near", "algorand", "solana"},
         .vs_currencies = {"usd", "btc", "pln", "sats"},
     });
@@ -193,6 +226,9 @@ auto main(int argc, char **argv) -> int {
     spdlog::info("+ total");
     for (auto &&[currency, valuation] : total)
         spdlog::info(" -> /{}: {:.2f}", currency, valuation);
+
+    for (auto &&coin : coingecko::v3::coins::list())
+        spdlog::info("{}", coin.platforms.size());
 
     return 0;
 }
