@@ -41,15 +41,21 @@ namespace coingecko::v3 {
 
 constexpr auto api = "https://api.coingecko.com/api/v3";
 
+nlohmann::json request(const std::string &url) {
+    const auto json = network::json::request(url);
+    if (json.empty()) return {};
+
+    if (json.contains("status") && json["status"].contains("error_code"))
+        return {};
+
+    return json;
+}
+
 namespace ping {
 auto ask() -> bool {
     const auto url = fmt::format("{}/ping", api);
-    const auto json = network::json::request(url);
-
-    if (json.contains("status") && json["status"].contains("error_code"))
-        return false;
-
-    return json.contains("gecko_says");
+    const auto json = request(url);
+    return !json.empty() && json.contains("gecko_says");
 }
 } // namespace ping
 
@@ -57,12 +63,8 @@ namespace simple::supported_vs_currencies {
 
 auto ask() -> std::vector<std::string> {
     const auto url = fmt::format("{}/simple/supported_vs_currencies", api);
-    const auto json = network::json::request(url);
-
-    if (json.contains("status") && json["status"].contains("error_code"))
-        return {};
-
-    json.is_array();
+    const auto json = request(url);
+    if (json.empty()) return {};
 
     std::vector<std::string> ret;
     for (auto &&item : json)
@@ -112,10 +114,8 @@ auto ask(const options &opts = {}) -> summary {
 
     const auto url_params = params | views::join('&') | to<std::string>();
     const auto url = fmt::format("{}/simple/price?{}", api, url_params);
-    const auto json = network::json::request(url);
-
-    if (json.contains("status") && json["status"].contains("error_code"))
-        return {};
+    const auto json = request(url);
+    if (json.empty()) return {};
 
     summary ret;
 
