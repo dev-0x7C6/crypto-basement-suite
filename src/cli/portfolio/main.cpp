@@ -29,6 +29,7 @@ auto get(const json &j, const std::string &key) -> std::optional<T> {
 }
 
 namespace network::json {
+
 nlohmann::json request(const std::string &url) {
     const auto response = network::request(url);
     if (!response) return {};
@@ -141,6 +142,11 @@ struct coin {
     std::unordered_map<std::string, std::string> platforms;
 };
 
+struct category {
+    std::string id;
+    std::string name;
+};
+
 using coins = std::vector<coin>;
 
 auto list(bool include_platform = true) -> coins {
@@ -165,6 +171,25 @@ auto list(bool include_platform = true) -> coins {
 
     return ret;
 }
+
+namespace categories {
+auto list() -> std::vector<category> {
+    const auto url = fmt::format("{}/coins/categories/list", api);
+    const auto json = request(url);
+    if (json.empty()) return {};
+
+    std::vector<category> ret;
+    for (auto object : json) {
+        struct category category;
+        category.id = get<std::string>(object, "category_id").value_or("");
+        category.name = get<std::string>(object, "name").value_or("");
+        ret.emplace_back(std::move(category));
+    }
+
+    return ret;
+}
+} // namespace categories
+
 } // namespace coins
 
 } // namespace coingecko::v3
@@ -229,6 +254,9 @@ auto main(int argc, char **argv) -> int {
 
     for (auto &&coin : coingecko::v3::coins::list())
         spdlog::info("{}", coin.platforms.size());
+
+    for (auto &&category : coingecko::v3::coins::categories::list())
+        spdlog::info("{}", category.id);
 
     return 0;
 }
