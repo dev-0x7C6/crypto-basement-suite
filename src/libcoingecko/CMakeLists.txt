@@ -2,6 +2,8 @@ add_library(libcoingecko-v3 SHARED
     src/api.hpp
     src/api.cpp
     src/price.cpp
+    src/ping.cpp
+    src/supported_vs_currencies.cpp
     src/list.cpp)
 
 target_include_directories(libcoingecko-v3 PUBLIC includes)
