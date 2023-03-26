@@ -1,6 +1,5 @@
 #include <CLI/CLI.hpp>
 #include <fmt/format.h>
-#include <libcoingecko/includes/coins/price.hpp>
 #include <nlohmann/json.hpp>
 #include <range/v3/view/join.hpp>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -14,6 +13,8 @@
 
 #include <networking/downloader.hpp>
 #include <types.hpp>
+
+#include <libcoingecko/v3/all.hpp>
 
 using namespace ranges;
 using namespace std::chrono_literals;
@@ -53,12 +54,6 @@ nlohmann::json request(const std::string &url) {
     return json;
 }
 
-auto ping() -> bool {
-    const auto url = fmt::format("{}/ping", api);
-    const auto json = request(url);
-    return !json.empty() && json.contains("gecko_says");
-}
-
 namespace simple {
 
 auto supported_vs_currencies() -> std::vector<std::string> {
@@ -76,42 +71,10 @@ auto supported_vs_currencies() -> std::vector<std::string> {
 
 namespace coins {
 
-struct coin {
-    std::string id;
-    std::string symbol;
-    std::string name;
-    std::unordered_map<std::string, std::string> platforms;
-};
-
 struct category {
     std::string id;
     std::string name;
 };
-
-using coins = std::vector<coin>;
-
-auto list(bool include_platform = true) -> coins {
-    const auto url = fmt::format("{}/coins/list?include_platform={}", api, include_platform);
-    const auto json = request(url);
-    if (json.empty()) return {};
-
-    coins ret;
-    for (auto object : json) {
-        struct coin coin;
-        coin.id = get<std::string>(object, "id").value_or("");
-        coin.symbol = get<std::string>(object, "symbol").value_or("");
-        coin.name = get<std::string>(object, "name").value_or("");
-
-        if (object.contains("platforms"))
-            for (auto &&[platform, contract] : object["platforms"].items())
-                if (contract.is_string())
-                    coin.platforms[platform] = contract.get<std::string>();
-
-        ret.emplace_back(std::move(coin));
-    }
-
-    return ret;
-}
 
 namespace categories {
 auto list() -> std::vector<category> {

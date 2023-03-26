@@ -1,7 +1,10 @@
 add_library(libcoingecko-v3 SHARED
-    price.cpp)
+    src/api.hpp
+    src/api.cpp
+    src/price.cpp
+    src/list.cpp)
 
-target_include_directories(libcoingecko-v3 PRIVATE includes)
+target_include_directories(libcoingecko-v3 PUBLIC includes)
 
 target_link_libraries(libcoingecko-v3 PRIVATE
     range-v3::concepts

@@ -1,5 +1,3 @@
-#pragma once
-
 #include <curlpp/Easy.hpp>
 #include <curlpp/Options.hpp>
 #include <curlpp/cURLpp.hpp>
@@ -9,16 +7,9 @@
 
 using namespace nlohmann;
 
-template <typename T>
-auto get(const json &j, const std::string &key) -> std::optional<T> {
-    try {
-        return j[key].get<T>();
-    } catch (...) {};
-    return {};
-}
+namespace {
 
 namespace network {
-
 auto request(const std::string &url) -> std::optional<std::string> {
     using namespace curlpp;
     using namespace curlpp::options;
@@ -44,12 +35,11 @@ auto request(const std::string &url) -> std::optional<std::string> {
 
     return {};
 }
-
 } // namespace network
 
 namespace network::json {
 
-nlohmann::json request(const std::string &url) {
+auto request(const std::string &url) -> nlohmann::json {
     const auto response = network::request(url);
     if (!response) return {};
 
@@ -57,11 +47,11 @@ nlohmann::json request(const std::string &url) {
 }
 } // namespace network::json
 
+} // namespace
+
 namespace coingecko::v3 {
 
-constexpr auto api = "https://api.coingecko.com/api/v3";
-
-nlohmann::json request(const std::string &url) {
+auto request(const std::string &url) -> nlohmann::json {
     const auto json = network::json::request(url);
     if (json.empty()) return {};
 
