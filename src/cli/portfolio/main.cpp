@@ -1,5 +1,6 @@
 #include <CLI/CLI.hpp>
 #include <fmt/format.h>
+#include <libcoingecko/includes/coins/price.hpp>
 #include <nlohmann/json.hpp>
 #include <range/v3/view/join.hpp>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -68,66 +69,6 @@ auto supported_vs_currencies() -> std::vector<std::string> {
     std::vector<std::string> ret;
     for (auto &&item : json)
         ret.emplace_back(item);
-
-    return ret;
-}
-} // namespace simple
-
-namespace simple {
-
-struct price {
-    double value{};
-    double market_cap{};
-    double volume_24h{};
-    double change_24h{};
-};
-
-struct options {
-    strings ids; // assets
-    strings vs_currencies; // usd
-    bool include_market_cap{true};
-    bool include_24hr_vol{true};
-    bool include_24hr_change{true};
-    bool include_last_updated_at{true};
-    uint precision{}; // 0 - 18;
-};
-
-using summary = std::unordered_map<std::string, std::unordered_map<std::string, price>>;
-
-auto price(const options &opts = {}) -> summary {
-    if (opts.ids.empty()) return {};
-    if (opts.vs_currencies.empty()) return {};
-
-    constexpr std::array<char, 3> comma = {'%', '2', 'C'};
-
-    const auto ids = opts.ids | views::join(comma) | to<std::string>();
-    const auto vs = opts.vs_currencies | views::join(comma) | to<std::string>();
-    const auto params = {
-        fmt::format("ids={}", ids),
-        fmt::format("vs_currencies={}", vs),
-        fmt::format("include_market_cap={}", opts.include_market_cap),
-        fmt::format("include_24hr_vol={}", opts.include_24hr_vol),
-        fmt::format("include_24hr_change={}", opts.include_24hr_change),
-        fmt::format("include_last_updated_at={}", opts.include_last_updated_at),
-    };
-
-    const auto url_params = params | views::join('&') | to<std::string>();
-    const auto url = fmt::format("{}/simple/price?{}", api, url_params);
-    const auto json = request(url);
-    if (json.empty()) return {};
-
-    summary ret;
-
-    for (auto &&[key, value] : json.items()) {
-        for (auto &&currency : opts.vs_currencies) {
-            struct price valuation;
-            valuation.value = get<double>(value, currency).value_or(0);
-            valuation.change_24h = get<double>(value, fmt::format("{}_24h_change", currency)).value_or(0);
-            valuation.market_cap = get<double>(value, fmt::format("{}_market_cap", currency)).value_or(0);
-            valuation.volume_24h = get<double>(value, fmt::format("{}_24h_vol", currency)).value_or(0);
-            ret[key].emplace(currency, valuation);
-        }
-    }
 
     return ret;
 }
@@ -236,7 +177,7 @@ auto main(int argc, char **argv) -> int {
     auto console = spdlog::stdout_color_mt("console");
     spdlog::set_pattern("%v");
 
-    const auto summary = coingecko::v3::simple::price({
+    const auto summary = coingecko::v3::coins::price({
         .ids = {"bitcoin", "cardano", "polkadot", "cosmos", "avalanche-2", "near", "algorand", "solana"},
         .vs_currencies = {"usd", "btc", "pln", "sats"},
     });

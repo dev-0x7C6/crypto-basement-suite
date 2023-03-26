@@ -4,6 +4,8 @@ add_subdirectory(indicators)
 add_subdirectory(model)
 add_subdirectory(networking)
 
+add_subdirectory(libcoingecko)
+
 add_executable(cbs "main.cpp")
 add_executable(cbs-benchmark "benchmark.cpp")
 

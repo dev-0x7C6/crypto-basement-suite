@@ -16,6 +16,6 @@ find_package(range-v3 REQUIRED)
 find_package(spdlog REQUIRED)
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(curlpp REQUIRED)
+pkg_check_modules(curlpp REQUIRED curlpp)
 
 add_subdirectory("src")
