@@ -192,6 +192,38 @@ auto list() -> std::vector<category> {
 
 } // namespace coins
 
+namespace global {
+struct data {
+    double active_cryptocurrencies{};
+    double upcoming_icos{};
+    double ongoing_icos{};
+    double ended_icos{};
+    double markets{};
+
+    std::unordered_map<std::string, double> total_market_cap;
+    std::unordered_map<std::string, double> total_volume;
+    std::unordered_map<std::string, double> market_cap_percentage;
+
+    double market_cap_change_percentage_24h_usd{};
+    uint64_t updated_at{};
+};
+
+auto list() -> std::optional<data> {
+    const auto url = fmt::format("{}/global", api);
+    const auto json = request(url);
+    if (json.empty()) return {};
+
+    struct data data;
+    data.active_cryptocurrencies = get<double>(json, "active_cryptocurrencies").value_or(0);
+    data.upcoming_icos = get<double>(json, "upcoming_icos").value_or(0);
+    data.ongoing_icos = get<double>(json, "ongoing_icos").value_or(0);
+    data.ended_icos = get<double>(json, "ended_icos").value_or(0);
+    data.markets = get<double>(json, "markets").value_or(0);
+    return data;
+}
+
+}
+
 } // namespace coingecko::v3
 
 auto main(int argc, char **argv) -> int {
