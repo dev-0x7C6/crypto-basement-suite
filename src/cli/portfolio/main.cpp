@@ -20,69 +20,6 @@ using namespace ranges;
 using namespace std::chrono_literals;
 using namespace nlohmann;
 
-using strings = std::vector<std::string>;
-
-template <typename T>
-auto get(const json &j, const std::string &key) -> std::optional<T> {
-    try {
-        return j[key].get<T>();
-    } catch (...) {};
-    return {};
-}
-
-namespace network::json {
-
-nlohmann::json request(const std::string &url) {
-    const auto response = network::request(url);
-    if (!response) return {};
-
-    return ::json::parse(response.value());
-}
-} // namespace network::json
-
-namespace coingecko::v3 {
-
-constexpr auto api = "https://api.coingecko.com/api/v3";
-
-nlohmann::json request(const std::string &url) {
-    const auto json = network::json::request(url);
-    if (json.empty()) return {};
-
-    if (json.contains("status") && json["status"].contains("error_code"))
-        return {};
-
-    return json;
-}
-
-namespace coins {
-
-struct category {
-    std::string id;
-    std::string name;
-};
-
-namespace categories {
-auto list() -> std::vector<category> {
-    const auto url = fmt::format("{}/coins/categories/list", api);
-    const auto json = request(url);
-    if (json.empty()) return {};
-
-    std::vector<category> ret;
-    for (auto object : json) {
-        struct category category;
-        category.id = get<std::string>(object, "category_id").value_or("");
-        category.name = get<std::string>(object, "name").value_or("");
-        ret.emplace_back(std::move(category));
-    }
-
-    return ret;
-}
-} // namespace categories
-
-} // namespace coins
-
-} // namespace coingecko::v3
-
 auto main(int argc, char **argv) -> int {
     CLI::App app("portfolio");
     std::vector<std::string> inputs;
