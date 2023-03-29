@@ -3,9 +3,8 @@
 
 #include <fmt/format.h>
 
-auto coingecko::v3::coins::supported_vs_currencies() -> strings {
-    const auto url = fmt::format("{}/simple/supported_vs_currencies", api);
-    const auto json = request(url);
+auto coingecko::v3::coins::supported_vs_currencies(const options &opts) -> strings {
+    const auto json = request("simple/supported_vs_currencies", opts);
     if (json.empty()) return {};
 
     std::vector<std::string> ret;

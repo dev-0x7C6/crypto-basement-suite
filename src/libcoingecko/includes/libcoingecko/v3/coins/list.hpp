@@ -1,5 +1,7 @@
 #pragma once
 
+#include <libcoingecko/v3/options.hpp>
+
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -15,5 +17,5 @@ struct coin {
 
 using coins = std::vector<coin>;
 
-auto list(bool include_platform = true) -> coins;
+auto list(bool include_platform = true, const options &opts = {}) -> coins;
 } // namespace coingecko::v3::coins

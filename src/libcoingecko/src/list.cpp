@@ -9,9 +9,8 @@ using namespace coingecko::v3::coins;
 
 namespace coingecko::v3::coins {
 
-auto list(bool include_platform) -> coins {
-    const auto url = fmt::format("{}/coins/list?include_platform={}", api, include_platform);
-    const auto json = request(url);
+auto list(bool include_platform, const options &opts) -> coins {
+    const auto json = request(fmt::format("coins/list?include_platform={}", include_platform), opts);
     if (json.empty()) return {};
 
     coins ret;

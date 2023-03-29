@@ -1,6 +1,9 @@
+#include "api.hpp"
+
 #include <curlpp/Easy.hpp>
 #include <curlpp/Options.hpp>
 #include <curlpp/cURLpp.hpp>
+#include <fmt/format.h>
 #include <nlohmann/json.hpp>
 
 #include <sstream>
@@ -51,8 +54,8 @@ auto request(const std::string &url) -> nlohmann::json {
 
 namespace coingecko::v3 {
 
-auto request(const std::string &url) -> nlohmann::json {
-    const auto json = network::json::request(url);
+auto request(const std::string &query, const options &opts) -> nlohmann::json {
+    const auto json = network::json::request(fmt::format("{}/{}", opts.provider, query));
     if (json.empty()) return {};
 
     if (json.contains("status") && json["status"].contains("error_code"))

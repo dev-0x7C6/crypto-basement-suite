@@ -4,8 +4,9 @@
 #include <fmt/format.h>
 #include <range/v3/all.hpp>
 
-using namespace ranges;
 using namespace coingecko::v3::coins;
+using namespace nlohmann;
+using namespace ranges;
 
 namespace coingecko::v3::coins {
 
@@ -20,7 +21,7 @@ auto from_json(const json &j, const std::string &currency) -> std::pair<std::str
 }
 } // namespace
 
-auto price(const price_query &query) -> prices {
+auto price(const price_query &query, const options &opts) -> prices {
     if (query.ids.empty()) return {};
     if (query.vs_currencies.empty()) return {};
 
@@ -38,8 +39,7 @@ auto price(const price_query &query) -> prices {
     };
 
     const auto url_params = params | views::join('&') | to<std::string>();
-    const auto url = fmt::format("{}/simple/price?{}", api, url_params);
-    const auto json = request(url);
+    const auto json = request(fmt::format("simple/price?{}", url_params), opts);
     if (json.empty()) return {};
 
     prices ret;

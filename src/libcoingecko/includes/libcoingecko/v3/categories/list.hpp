@@ -1,6 +1,7 @@
 #pragma once
 
-#include <string>
+#include <libcoingecko/v3/options.hpp>
+
 #include <vector>
 
 namespace coingecko::v3::coins::categories {
@@ -10,6 +11,6 @@ struct category {
     std::string name;
 };
 
-auto list() -> std::vector<category>;
+auto list(const options &opts = {}) -> std::vector<category>;
 
 } // namespace coingecko::v3::coins::categories

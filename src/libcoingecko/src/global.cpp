@@ -5,9 +5,8 @@
 
 namespace coingecko::v3::global {
 
-auto list() -> std::optional<data> {
-    const auto url = fmt::format("{}/global", api);
-    const auto json = request(url);
+auto list(const options &opts) -> std::optional<data> {
+    const auto json = request("global", opts);
     if (json.empty()) return {};
 
     struct data data;

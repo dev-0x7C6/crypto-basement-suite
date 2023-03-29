@@ -3,8 +3,7 @@
 
 #include <fmt/format.h>
 
-auto coingecko::v3::ping() -> bool {
-    const auto url = fmt::format("{}/ping", api);
-    const auto json = request(url);
+auto coingecko::v3::ping(const options &opts) -> bool {
+    const auto json = request("ping", opts);
     return !json.empty() && json.contains("gecko_says");
 }

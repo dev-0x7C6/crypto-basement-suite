@@ -9,9 +9,8 @@ using namespace coingecko::v3::coins::categories;
 
 namespace coingecko::v3::coins::categories {
 
-auto list() -> std::vector<category> {
-    const auto url = fmt::format("{}/coins/categories/list", api);
-    const auto json = request(url);
+auto list(const options &opts) -> std::vector<category> {
+    const auto json = request("coins/categories/list", opts);
     if (json.empty()) return {};
 
     std::vector<category> ret;

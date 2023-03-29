@@ -1,6 +1,7 @@
 #pragma once
 
-#include <string>
+#include <libcoingecko/v3/options.hpp>
+
 #include <unordered_map>
 #include <vector>
 
@@ -27,6 +28,6 @@ struct price {
 
 using prices = std::unordered_map<std::string, std::unordered_map<std::string, price>>;
 
-auto price(const price_query & = {}) -> prices;
+auto price(const price_query & = {}, const options &opts = {}) -> prices;
 
 } // namespace coingecko::v3::coins
