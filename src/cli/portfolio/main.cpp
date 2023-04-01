@@ -44,7 +44,7 @@ auto main(int argc, char **argv) -> int {
     std::vector<std::pair<std::string, double>> input{
         {"bitcoin", 0.12},
         {"bitcoin", 0.24},
-        {"bitcoin", 2.01},
+        {"bitcoin", 0.02},
         {"cardano", 1203.50},
         {"cardano", 1929.29},
         {"cardano", 2384.03},
@@ -74,15 +74,21 @@ auto main(int argc, char **argv) -> int {
         spdlog::info("");
     }
 
+    spdlog::info("+ shares");
+    for (auto &&[portfolio_asset, portfolio_ballance] : portfolio) {
+        spdlog::info("  + {}", portfolio_asset);
+        for (auto &&[asset, prices] : summary)
+            if (portfolio_asset == asset) {
+                const auto value = portfolio_ballance * prices.at("btc").value;
+                spdlog::info("   -> {:.2f}% [{:f}]", value / total["btc"] * 100.0, portfolio_ballance);
+            }
+
+        spdlog::info("");
+    }
+
     spdlog::info("+ total");
     for (auto &&[currency, valuation] : total)
         spdlog::info(" -> /{}: {:.2f}", currency, valuation);
-
-    for (auto &&coin : coingecko::v3::coins::list())
-        spdlog::info("{}", coin.platforms.size());
-
-    for (auto &&category : coingecko::v3::coins::categories::list())
-        spdlog::info("{}", category.id);
 
     return 0;
 }
