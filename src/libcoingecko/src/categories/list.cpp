@@ -16,8 +16,8 @@ auto list(const options &opts) -> std::vector<category> {
     std::vector<category> ret;
     for (auto object : json) {
         struct category category;
-        category.id = get<std::string>(object, "category_id").value_or("");
-        category.name = get<std::string>(object, "name").value_or("");
+        set(object, "category_id", category.id);
+        set(object, "name", category.name);
         ret.emplace_back(std::move(category));
     }
 

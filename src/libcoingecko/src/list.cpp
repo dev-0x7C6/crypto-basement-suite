@@ -19,11 +19,7 @@ auto list(bool include_platform, const options &opts) -> coins {
         set(object, "id", coin.id);
         set(object, "symbol", coin.symbol);
         set(object, "name", coin.name);
-
-        if (object.contains("platforms"))
-            for (auto &&[platform, contract] : object["platforms"].items())
-                if (contract.is_string())
-                    coin.platforms[platform] = contract.get<std::string>();
+        set(object, "platforms", coin.platforms);
 
         ret.emplace_back(std::move(coin));
     }
