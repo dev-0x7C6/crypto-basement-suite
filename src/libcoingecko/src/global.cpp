@@ -10,11 +10,19 @@ auto list(const options &opts) -> std::optional<data> {
     if (json.empty()) return {};
 
     struct data data;
-    data.active_cryptocurrencies = get<double>(json, "active_cryptocurrencies").value_or(0);
-    data.upcoming_icos = get<double>(json, "upcoming_icos").value_or(0);
-    data.ongoing_icos = get<double>(json, "ongoing_icos").value_or(0);
-    data.ended_icos = get<double>(json, "ended_icos").value_or(0);
-    data.markets = get<double>(json, "markets").value_or(0);
+    set(json, "active_cryptocurrencies", data.active_cryptocurrencies);
+    set(json, "upcoming_icos", data.upcoming_icos);
+    set(json, "ongoing_icos", data.ongoing_icos);
+    set(json, "ended_icos", data.ended_icos);
+    set(json, "markets", data.markets);
+
+    data.total_market_cap = to_map<std::string, double>(json, "total_market_cap");
+    data.total_volume = to_map<std::string, double>(json, "total_volume");
+    data.market_cap_percentage = to_map<std::string, double>(json, "market_cap_percentage");
+
+    set(json, "market_cap_change_percentage_24h_usd", data.market_cap_change_percentage_24h_usd);
+    set(json, "updated_at", data.updated_at);
+
     return data;
 }
 
