@@ -5,10 +5,10 @@
 #include <unordered_map>
 #include <vector>
 
-using strings = std::vector<std::string>;
-
 namespace coingecko::v3::coins {
 
-auto supported_vs_currencies(const options &opts = {}) -> strings;
+using strings = std::vector<std::string>;
+
+auto supported_vs_currencies(const options &opts = {}) -> std::expected<strings, error>;
 
 } // namespace coingecko::v3::coins

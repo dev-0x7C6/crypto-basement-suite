@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -17,9 +18,9 @@ struct data {
     std::unordered_map<std::string, double> market_cap_percentage;
 
     double market_cap_change_percentage_24h_usd{};
-    uint64_t updated_at{};
+    std::uint64_t updated_at{};
 };
 
-auto list() -> std::optional<data>;
+auto list() -> std::expected<data, error>;
 
 } // namespace coingecko::v3::global

@@ -4,6 +4,6 @@
 #include <fmt/format.h>
 
 auto coingecko::v3::ping(const options &opts) -> bool {
-    const auto json = request("ping", opts);
-    return !json.empty() && json.contains("gecko_says");
+    const auto req = request("ping", opts);
+    return req && !req.value().empty() && req.value().contains("gecko_says");
 }

@@ -11,6 +11,8 @@ struct category {
     std::string name;
 };
 
-auto list(const options &opts = {}) -> std::vector<category>;
+using categories = std::vector<category>;
+
+auto list(const options &opts = {}) -> std::expected<categories, error>;
 
 } // namespace coingecko::v3::coins::categories

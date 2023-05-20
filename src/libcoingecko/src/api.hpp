@@ -40,7 +40,6 @@ inline auto set<std::unordered_map<std::string, std::string>>(const nlohmann::js
 
 namespace coingecko::v3 {
 
-auto request_v2(const std::string &query, const options &opts = {}) -> std::expected<nlohmann::json, error>;
-auto request(const std::string &query, const options &opts = {}) -> nlohmann::json;
+auto request(const std::string &query, const options &opts = {}) -> std::expected<nlohmann::json, error>;
 
 } // namespace coingecko::v3

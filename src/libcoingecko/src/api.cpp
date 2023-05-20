@@ -57,7 +57,7 @@ auto request(const std::string &url) -> std::expected<nlohmann::json, error> {
 
 namespace coingecko::v3 {
 
-auto request_v2(const std::string &query, const options &opts) -> std::expected<nlohmann::json, error> {
+auto request(const std::string &query, const options &opts) -> std::expected<nlohmann::json, error> {
     const auto response = network::json::request(fmt::format("{}/{}", opts.provider, query));
     if (!response) return response;
 
@@ -68,17 +68,4 @@ auto request_v2(const std::string &query, const options &opts) -> std::expected<
 
     return json;
 }
-
-auto request(const std::string &query, const options &opts) -> nlohmann::json {
-    const auto response = network::json::request(fmt::format("{}/{}", opts.provider, query));
-    if (!response) return {};
-
-    auto &&json = response.value();
-
-    if (json.contains("status") && json["status"].contains("error_code"))
-        return {};
-
-    return json;
-}
-
 } // namespace coingecko::v3

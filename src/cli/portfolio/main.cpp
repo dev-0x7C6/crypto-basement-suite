@@ -29,15 +29,17 @@ auto main(int argc, char **argv) -> int {
     auto console = spdlog::stdout_color_mt("console");
     spdlog::set_pattern("%v");
 
-    const auto summary = coingecko::v3::coins::price({
+    const auto req = coingecko::v3::coins::price({
         .ids = {"bitcoin", "cardano", "polkadot", "cosmos", "avalanche-2", "near", "algorand", "solana"},
         .vs_currencies = {"usd", "btc", "pln", "sats"},
     });
 
-    if (summary.empty()) {
+    if (!req) {
         spdlog::error("invalid coingecko data");
         return 1;
     }
+
+    auto &&summary = req.value();
 
     // test input
     std::vector<std::pair<std::string, double>> input{

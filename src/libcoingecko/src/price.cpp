@@ -21,7 +21,7 @@ auto from_json(const json &j, const std::string &currency) -> std::pair<std::str
 }
 } // namespace
 
-auto price(const price_query &query, const options &opts) -> prices {
+auto price(const price_query &query, const options &opts) -> std::expected<prices, error> {
     if (query.ids.empty()) return {};
     if (query.vs_currencies.empty()) return {};
 
@@ -40,11 +40,11 @@ auto price(const price_query &query, const options &opts) -> prices {
 
     const auto url_params = params | views::join('&') | to<std::string>();
     const auto json = request(fmt::format("simple/price?{}", url_params), opts);
-    if (json.empty()) return {};
+    if (!json) return std::unexpected(json.error());
 
     prices ret;
 
-    for (auto &&[key, value] : json.items())
+    for (auto &&[key, value] : json.value().items())
         for (auto &&currency : query.vs_currencies)
             ret[key].emplace(from_json(value, currency));
 

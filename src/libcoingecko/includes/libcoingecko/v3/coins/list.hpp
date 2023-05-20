@@ -17,5 +17,5 @@ struct coin {
 
 using coins = std::vector<coin>;
 
-auto list(bool include_platform = true, const options &opts = {}) -> coins;
+auto list(bool include_platform = true, const options &opts = {}) -> std::expected<coins, error>;
 } // namespace coingecko::v3::coins

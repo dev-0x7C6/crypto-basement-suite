@@ -5,9 +5,9 @@
 
 namespace coingecko::v3::global {
 
-auto list(const options &opts) -> std::optional<data> {
+auto list(const options &opts) -> std::expected<data, error> {
     const auto json = request("global", opts);
-    if (json.empty()) return {};
+    if (!json) return std::unexpected(json.error());
 
     struct data data;
     set(json, "active_cryptocurrencies", data.active_cryptocurrencies);
