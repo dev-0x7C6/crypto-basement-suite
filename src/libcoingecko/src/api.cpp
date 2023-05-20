@@ -1,6 +1,7 @@
 #include "api.hpp"
 
 #include <curlpp/Easy.hpp>
+#include <curlpp/Exception.hpp>
 #include <curlpp/Options.hpp>
 #include <curlpp/cURLpp.hpp>
 #include <fmt/format.h>
@@ -10,10 +11,12 @@
 
 using namespace nlohmann;
 
+using error = coingecko::v3::error;
+
 namespace {
 
 namespace network {
-auto request(const std::string &url) -> std::optional<std::string> {
+auto request(const std::string &url) -> std::expected<std::string, error> {
     using namespace curlpp;
     using namespace curlpp::options;
     try {
@@ -23,28 +26,28 @@ auto request(const std::string &url) -> std::optional<std::string> {
 
         std::stringstream stream;
         stream << request;
-        return stream.str();
+        return std::string(stream.str());
     }
 
     catch (RuntimeError &e) {
         std::cout << e.what() << std::endl;
-        return {};
+        return std::unexpected(error::generic_error);
     }
 
     catch (LogicError &e) {
         std::cout << e.what() << std::endl;
-        return {};
+        return std::unexpected(error::generic_error);
     }
 
-    return {};
+    return std::unexpected(error::generic_error);
 }
 } // namespace network
 
 namespace network::json {
 
-auto request(const std::string &url) -> nlohmann::json {
+auto request(const std::string &url) -> std::expected<nlohmann::json, error> {
     const auto response = network::request(url);
-    if (!response) return {};
+    if (!response) return response;
 
     return ::json::parse(response.value());
 }
@@ -54,13 +57,28 @@ auto request(const std::string &url) -> nlohmann::json {
 
 namespace coingecko::v3 {
 
-auto request(const std::string &query, const options &opts) -> nlohmann::json {
-    const auto json = network::json::request(fmt::format("{}/{}", opts.provider, query));
-    if (json.empty()) return {};
+auto request_v2(const std::string &query, const options &opts) -> std::expected<nlohmann::json, error> {
+    const auto response = network::json::request(fmt::format("{}/{}", opts.provider, query));
+    if (!response) return response;
+
+    auto &&json = response.value();
 
     if (json.contains("status") && json["status"].contains("error_code"))
         return {};
 
     return json;
 }
+
+auto request(const std::string &query, const options &opts) -> nlohmann::json {
+    const auto response = network::json::request(fmt::format("{}/{}", opts.provider, query));
+    if (!response) return {};
+
+    auto &&json = response.value();
+
+    if (json.contains("status") && json["status"].contains("error_code"))
+        return {};
+
+    return json;
+}
+
 } // namespace coingecko::v3

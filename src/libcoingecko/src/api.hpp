@@ -1,8 +1,10 @@
 #pragma once
 
+#include <expected>
+#include <unordered_map>
+
 #include <libcoingecko/v3/options.hpp>
 #include <nlohmann/json.hpp>
-#include <unordered_map>
 
 template <typename T>
 auto get(const nlohmann::json &j, const std::string &key) -> std::optional<T> {
@@ -38,6 +40,7 @@ inline auto set<std::unordered_map<std::string, std::string>>(const nlohmann::js
 
 namespace coingecko::v3 {
 
+auto request_v2(const std::string &query, const options &opts = {}) -> std::expected<nlohmann::json, error>;
 auto request(const std::string &query, const options &opts = {}) -> nlohmann::json;
 
 } // namespace coingecko::v3

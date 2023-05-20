@@ -11,10 +11,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include <libcoingecko/v3/all.hpp>
 #include <networking/downloader.hpp>
 #include <types.hpp>
-
-#include <libcoingecko/v3/all.hpp>
 
 using namespace ranges;
 using namespace std::chrono_literals;
