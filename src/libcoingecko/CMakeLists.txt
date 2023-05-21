@@ -6,7 +6,7 @@ add_library(libcoingecko-v3 SHARED
     src/ping.cpp
     src/supported_vs_currencies.cpp
     src/list.cpp)
-
+    
 target_include_directories(libcoingecko-v3 PUBLIC includes)
 target_include_directories(libcoingecko-v3 PRIVATE src)
 
@@ -20,3 +20,4 @@ target_link_libraries(libcoingecko-v3 PRIVATE
     curl
 )
 
+add_subdirectory(examples)
