@@ -19,7 +19,10 @@ auto list(bool include_platform, const options &opts) -> std::expected<coins, er
         set(object, "id", coin.id);
         set(object, "symbol", coin.symbol);
         set(object, "name", coin.name);
-        set(object, "platforms", coin.platforms);
+        if (include_platform && object.contains("platforms"))
+            for (auto &&[key, value] : object["platforms"].items())
+                if (value.is_string())
+                    coin.platforms[key] = value.get<std::string>();
 
         ret.emplace_back(std::move(coin));
     }
