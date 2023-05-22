@@ -1,8 +1,6 @@
 #include "libcoingecko/v3/global/global.hpp"
 #include "api.hpp"
 
-#include <fmt/format.h>
-
 namespace coingecko::v3::global {
 
 auto list(const options &opts) -> std::expected<data, error> {

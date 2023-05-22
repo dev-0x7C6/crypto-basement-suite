@@ -1,9 +1,10 @@
 #include "libcoingecko/v3/coins/price.hpp"
 #include "api.hpp"
 
-#include <fmt/format.h>
+#include <format>
 #include <range/v3/all.hpp>
 
+using namespace std::literals;
 using namespace coingecko::v3::coins;
 using namespace nlohmann;
 using namespace ranges;
@@ -14,9 +15,9 @@ namespace {
 auto from_json(const json &j, const std::string &currency) -> std::pair<std::string, struct price> {
     struct price ret;
     set(j, currency, ret.value);
-    set(j, fmt::format("{}_24h_change", currency), ret.change_24h);
-    set(j, fmt::format("{}_market_cap", currency), ret.market_cap);
-    set(j, fmt::format("{}_24h_vol", currency), ret.volume_24h);
+    set(j, std::format("{}_24h_change", currency), ret.change_24h);
+    set(j, std::format("{}_market_cap", currency), ret.market_cap);
+    set(j, std::format("{}_24h_vol", currency), ret.volume_24h);
     return {currency, ret};
 }
 } // namespace
@@ -25,21 +26,21 @@ auto price(const price_query &query, const options &opts) -> std::expected<price
     if (query.ids.empty()) return {};
     if (query.vs_currencies.empty()) return {};
 
-    constexpr std::array<char, 3> comma = {'%', '2', 'C'};
+    constexpr auto comma = "%2C"sv;
 
     const auto ids = query.ids | views::join(comma) | to<std::string>();
     const auto vs = query.vs_currencies | views::join(comma) | to<std::string>();
     const auto params = {
-        fmt::format("ids={}", ids),
-        fmt::format("vs_currencies={}", vs),
-        fmt::format("include_market_cap={}", query.include_market_cap),
-        fmt::format("include_24hr_vol={}", query.include_24hr_vol),
-        fmt::format("include_24hr_change={}", query.include_24hr_change),
-        fmt::format("include_last_updated_at={}", query.include_last_updated_at),
+        std::format("ids={}", ids),
+        std::format("vs_currencies={}", vs),
+        std::format("include_market_cap={}", query.include_market_cap),
+        std::format("include_24hr_vol={}", query.include_24hr_vol),
+        std::format("include_24hr_change={}", query.include_24hr_change),
+        std::format("include_last_updated_at={}", query.include_last_updated_at),
     };
 
     const auto url_params = params | views::join('&') | to<std::string>();
-    const auto json = request(fmt::format("simple/price?{}", url_params), opts);
+    const auto json = request(std::format("simple/price?{}", url_params), opts);
     if (!json) return std::unexpected(json.error());
 
     prices ret;

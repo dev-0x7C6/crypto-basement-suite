@@ -4,9 +4,9 @@
 #include <curlpp/Exception.hpp>
 #include <curlpp/Options.hpp>
 #include <curlpp/cURLpp.hpp>
-#include <fmt/format.h>
 #include <nlohmann/json.hpp>
 
+#include <format>
 #include <sstream>
 
 using namespace nlohmann;
@@ -58,7 +58,7 @@ auto request(const std::string &url) -> std::expected<nlohmann::json, error> {
 namespace coingecko::v3 {
 
 auto request(const std::string &query, const options &opts) -> std::expected<nlohmann::json, error> {
-    const auto response = network::json::request(fmt::format("{}/{}", opts.provider, query));
+    const auto response = network::json::request(std::format("{}/{}", opts.provider, query));
     if (!response) return response;
 
     auto &&json = response.value();
