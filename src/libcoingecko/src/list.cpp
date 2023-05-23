@@ -7,10 +7,10 @@
 using namespace ranges;
 using namespace coingecko::v3::coins;
 
-namespace coingecko::v3::coins {
+namespace coingecko::v3::coins::list {
 
-auto list(bool include_platform, const options &opts) -> std::expected<coins, error> {
-    const auto json = request(std::format("coins/list?include_platform={}", include_platform), opts);
+auto query(const settings &s, const options &opts) -> std::expected<coins, error> {
+    const auto json = request(std::format("coins/list?include_platform={}", s.include_platform), opts);
     if (!json) return std::unexpected(json.error());
 
     coins ret;
@@ -19,7 +19,7 @@ auto list(bool include_platform, const options &opts) -> std::expected<coins, er
         set(object, "id", coin.id);
         set(object, "symbol", coin.symbol);
         set(object, "name", coin.name);
-        if (include_platform && object.contains("platforms"))
+        if (s.include_platform && object.contains("platforms"))
             for (auto &&[key, value] : object["platforms"].items())
                 if (value.is_string())
                     coin.platforms[key] = value.get<std::string>();
@@ -30,4 +30,4 @@ auto list(bool include_platform, const options &opts) -> std::expected<coins, er
     return ret;
 }
 
-} // namespace coingecko::v3::coins
+} // namespace coingecko::v3::coins::list

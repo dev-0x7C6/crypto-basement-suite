@@ -2,8 +2,10 @@
 
 #include <libcoingecko/v3/coins/price.hpp>
 
+using namespace coingecko::v3;
+
 auto main(int argc, char **argv) -> int {
-    const auto result = coingecko::v3::coins::price({
+    const auto result = coins::price::query({
         .ids = {"bitcoin", "ethereum", "cardano", "polkadot", "cosmos"},
         .vs_currencies = {"usd", "btc", "sats"},
     });

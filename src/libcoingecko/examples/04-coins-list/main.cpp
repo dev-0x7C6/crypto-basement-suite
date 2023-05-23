@@ -2,15 +2,10 @@
 
 #include <libcoingecko/v3/coins/list.hpp>
 
-struct coin {
-    std::string id;
-    std::string symbol;
-    std::string name;
-    std::unordered_map<std::string, std::string> platforms;
-};
+using namespace coingecko::v3;
 
 auto main(int argc, char **argv) -> int {
-    const auto result = coingecko::v3::coins::list();
+    const auto result = coins::list::query();
 
     if (!result) {
         std::cerr << "coingecko: unable to fetch coin list" << std::endl;

@@ -9,10 +9,10 @@ using namespace coingecko::v3::coins;
 using namespace nlohmann;
 using namespace ranges;
 
-namespace coingecko::v3::coins {
+namespace coingecko::v3::coins::price {
 
 namespace {
-auto from_json(const json &j, const std::string &currency) -> std::pair<std::string, struct price> {
+auto from_json(const json &j, const std::string &currency) -> std::pair<std::string, price> {
     struct price ret;
     set(j, currency, ret.value);
     set(j, std::format("{}_24h_change", currency), ret.change_24h);
@@ -22,7 +22,7 @@ auto from_json(const json &j, const std::string &currency) -> std::pair<std::str
 }
 } // namespace
 
-auto price(const price_query &query, const options &opts) -> std::expected<prices, error> {
+auto query(const settings &query, const options &opts) -> std::expected<prices, error> {
     if (query.ids.empty()) return {};
     if (query.vs_currencies.empty()) return {};
 
@@ -52,4 +52,4 @@ auto price(const price_query &query, const options &opts) -> std::expected<price
     return ret;
 }
 
-} // namespace coingecko::v3::coins
+} // namespace coingecko::v3::coins::price

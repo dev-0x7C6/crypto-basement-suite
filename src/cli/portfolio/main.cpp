@@ -29,7 +29,7 @@ auto main(int argc, char **argv) -> int {
     auto console = spdlog::stdout_color_mt("console");
     spdlog::set_pattern("%v");
 
-    const auto req = coingecko::v3::coins::price({
+    const auto req = coingecko::v3::coins::price::query({
         .ids = {"bitcoin", "cardano", "polkadot", "cosmos", "avalanche-2", "near", "algorand", "solana"},
         .vs_currencies = {"usd", "btc", "pln", "sats"},
     });

@@ -6,7 +6,11 @@
 #include <unordered_map>
 #include <vector>
 
-namespace coingecko::v3::coins {
+namespace coingecko::v3::coins::list {
+
+struct settings {
+    bool include_platform{true};
+};
 
 struct coin {
     std::string id;
@@ -17,5 +21,5 @@ struct coin {
 
 using coins = std::vector<coin>;
 
-auto list(bool include_platform = true, const options &opts = {}) -> std::expected<coins, error>;
-} // namespace coingecko::v3::coins
+auto query(const settings &s = {}, const options &opts = {}) -> std::expected<coins, error>;
+} // namespace coingecko::v3::coins::list
