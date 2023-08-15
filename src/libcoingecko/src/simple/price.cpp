@@ -1,18 +1,18 @@
-#include "libcoingecko/v3/coins/price.hpp"
+#include "libcoingecko/v3/simple/price.hpp"
 #include "api.hpp"
 
 #include <format>
 #include <range/v3/all.hpp>
 
 using namespace std::literals;
-using namespace coingecko::v3::coins;
+using namespace coingecko::v3::simple;
 using namespace nlohmann;
 using namespace ranges;
 
-namespace coingecko::v3::coins::price {
+namespace coingecko::v3::simple::price {
 
 namespace {
-auto from_json(const json &j, const std::string &currency) -> std::pair<std::string, price> {
+auto from_json(const json &j, const std::string &currency) -> std::pair<std::string, struct price> {
     struct price ret;
     set(j, currency, ret.value);
     set(j, std::format("{}_24h_change", currency), ret.change_24h);
@@ -22,7 +22,7 @@ auto from_json(const json &j, const std::string &currency) -> std::pair<std::str
 }
 } // namespace
 
-auto query(const settings &query, const options &opts) -> std::expected<prices, error> {
+auto query(const parameters &query, const options &opts) -> std::expected<prices, error> {
     if (query.ids.empty()) return {};
     if (query.vs_currencies.empty()) return {};
 
@@ -52,4 +52,4 @@ auto query(const settings &query, const options &opts) -> std::expected<prices, 
     return ret;
 }
 
-} // namespace coingecko::v3::coins::price
+} // namespace coingecko::v3::simple::price

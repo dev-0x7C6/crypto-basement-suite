@@ -7,9 +7,9 @@
 
 using strings = std::vector<std::string>;
 
-namespace coingecko::v3::coins::price {
+namespace coingecko::v3::simple::price {
 
-struct settings {
+struct parameters {
     strings ids; // assets
     strings vs_currencies; // usd
     bool include_market_cap{true};
@@ -26,8 +26,8 @@ struct price {
     double change_24h{};
 };
 
-using prices = std::unordered_map<std::string, std::unordered_map<std::string, price>>;
+using prices = std::unordered_map<std::string, std::unordered_map<std::string, struct price>>;
 
-auto query(const settings & = {}, const options &opts = {}) -> std::expected<prices, error>;
+auto query(const parameters & = {}, const options & = {}) -> std::expected<prices, error>;
 
-} // namespace coingecko::v3::coins::price
+} // namespace coingecko::v3::simple::price
