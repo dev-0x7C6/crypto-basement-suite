@@ -15,23 +15,52 @@
 #include <networking/downloader.hpp>
 #include <types.hpp>
 
+#include <csv.hpp>
+
+using namespace csv;
+
 using namespace ranges;
 using namespace std::chrono_literals;
 using namespace nlohmann;
 
+auto read_input_files(const std::vector<std::string> &files) -> std::vector<std::pair<std::string, double>> {
+    std::vector<std::pair<std::string, double>> ret;
+    for (auto &&file : files) {
+        spdlog::info("reading data from {}", file);
+        CSVReader reader(file);
+        for (auto &&row : reader)
+            ret.emplace_back(std::make_pair(row[0].get<std::string>(), row[1].get<double>()));
+    }
+
+    ranges::sort(ret, [](auto &&l, auto &&r) {
+        return l.first < r.first;
+    });
+
+    return ret;
+}
+
 auto main(int argc, char **argv) -> int {
     CLI::App app("portfolio");
-    std::vector<std::string> inputs;
-    auto input_file_opt = app.add_option("-i,--input,input", inputs, "input json");
+    std::vector<std::string> files;
+    auto input_file_opt = app.add_option("-i,--input,input", files, "input json")->required();
     input_file_opt->allow_extra_args()->check(CLI::ExistingFile);
     CLI11_PARSE(app, argc, argv);
 
     auto console = spdlog::stdout_color_mt("console");
     spdlog::set_pattern("%v");
 
+    const auto input = read_input_files(files);
+
+    std::ofstream output("output.csv");
+    auto writer = csv::make_csv_writer(output);
+    writer << std::vector<std::string>({"coin", "value"});
+    for (auto &&[coin, count] : input) {
+        writer << std::make_tuple(coin, count);
+    }
+
     const auto req = coingecko::v3::simple::price::query({
-        .ids = {"bitcoin", "cardano", "polkadot", "cosmos", "avalanche-2", "near", "algorand", "solana"},
-        .vs_currencies = {"usd", "btc", "pln", "sats"},
+        .ids = input | ranges::views::transform([](auto &&p) { return p.first; }) | ranges::to<std::vector<std::string>>(),
+        .vs_currencies = {"usd", "btc", "pln", "sats", "eur"},
     });
 
     if (!req) {
@@ -40,22 +69,6 @@ auto main(int argc, char **argv) -> int {
     }
 
     auto &&summary = req.value();
-
-    // test input
-    std::vector<std::pair<std::string, double>> input{
-        {"bitcoin", 0.12},
-        {"bitcoin", 0.24},
-        {"bitcoin", 0.02},
-        {"cardano", 1203.50},
-        {"cardano", 1929.29},
-        {"cardano", 2384.03},
-        {"cosmos", 15.22},
-        {"cosmos", 20.21},
-        {"cosmos", 41.98},
-        {"polkadot", 129.23},
-        {"polkadot", 21.02},
-        {"polkadot", 99.99},
-    };
 
     std::map<std::string, double> portfolio;
     for (auto [symbol, balance] : input)
