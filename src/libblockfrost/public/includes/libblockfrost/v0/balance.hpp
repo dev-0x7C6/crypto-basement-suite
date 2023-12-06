@@ -5,5 +5,6 @@
 #include <string>
 
 namespace blockfrost::v0 {
-auto balance(const std::string &address, const options &opts = {}) -> std::optional<double>;
+auto address_balance(const std::string &address, const options &opts = {}) -> std::optional<double>;
+auto accounts_balance(const std::string &address, const options &opts = {}) -> std::optional<double>;
 }

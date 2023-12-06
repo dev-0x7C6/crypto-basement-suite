@@ -3,7 +3,7 @@
 #include <fmt/format.h>
 #include <string>
 
-auto blockfrost::v0::balance(const std::string &address, const options &opts) -> std::optional<double> {
+auto blockfrost::v0::address_balance(const std::string &address, const options &opts) -> std::optional<double> {
     const auto json = request(fmt::format("addresses/{}", address), opts);
     if (!json) return {};
 
@@ -14,4 +14,10 @@ auto blockfrost::v0::balance(const std::string &address, const options &opts) ->
     }
 
     return {};
+}
+
+auto blockfrost::v0::accounts_balance(const std::string &address, const options &opts) -> std::optional<double> {
+    const auto json = request(fmt::format("accounts/{}", address), opts);
+    if (!json) return {};
+    return std::stoull(json->value("controlled_amount", "0")) / 1000000.0;
 }
