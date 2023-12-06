@@ -6,8 +6,11 @@ project(
   LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+add_compile_definitions("-D__cpp_concepts=202002L")
 
 find_package(CLI11 REQUIRED)
 find_package(benchmark REQUIRED)

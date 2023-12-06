@@ -1,7 +1,9 @@
 #pragma once
 
+#include <libcoingecko/v3/options.hpp>
+
 #include <cstdint>
-#include <optional>
+#include <expected>
 #include <string>
 #include <unordered_map>
 

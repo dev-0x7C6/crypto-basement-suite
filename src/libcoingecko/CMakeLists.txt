@@ -1,11 +1,12 @@
+
+file(GLOB_RECURSE libcoingecko-v3-public includes/*.hpp)
+file(GLOB_RECURSE libcoingecko-v3-private-headers src/*.hpp)
+file(GLOB_RECURSE libcoingecko-v3-private-sources src/*.cpp)
+
 add_library(libcoingecko-v3 SHARED
-    src/api.hpp
-    src/api.cpp
-    src/categories/list.cpp
-    src/simple/price.cpp
-    src/ping.cpp
-    src/simple/supported_vs_currencies.cpp
-    src/list.cpp
+    ${libcoingecko-v3-public}
+    ${libcoingecko-v3-private-headers}
+    ${libcoingecko-v3-private-sources}
 )
     
 target_include_directories(libcoingecko-v3 PUBLIC includes)

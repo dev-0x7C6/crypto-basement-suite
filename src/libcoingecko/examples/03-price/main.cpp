@@ -1,11 +1,11 @@
 #include <iostream>
 
-#include <libcoingecko/v3/coins/price.hpp>
+#include <libcoingecko/v3/simple/price.hpp>
 
 using namespace coingecko::v3;
 
 auto main(int argc, char **argv) -> int {
-    const auto result = coins::price::query({
+    const auto result = simple::price::query({
         .ids = {"bitcoin", "ethereum", "cardano", "polkadot", "cosmos"},
         .vs_currencies = {"usd", "btc", "sats"},
     });

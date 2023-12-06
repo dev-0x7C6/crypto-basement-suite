@@ -3,7 +3,6 @@
 #include <cmath>
 #include <cstring>
 #include <fstream>
-#include <optional>
 #include <vector>
 
 #include <fmt/format.h>
