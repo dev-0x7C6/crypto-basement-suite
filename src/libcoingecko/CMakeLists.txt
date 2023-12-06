@@ -1,7 +1,7 @@
 
-file(GLOB_RECURSE libcoingecko-v3-public includes/*.hpp)
-file(GLOB_RECURSE libcoingecko-v3-private-headers src/*.hpp)
-file(GLOB_RECURSE libcoingecko-v3-private-sources src/*.cpp)
+file(GLOB_RECURSE libcoingecko-v3-public public/*.hpp)
+file(GLOB_RECURSE libcoingecko-v3-private-headers private/*.hpp)
+file(GLOB_RECURSE libcoingecko-v3-private-sources private/*.cpp)
 
 add_library(libcoingecko-v3 SHARED
     ${libcoingecko-v3-public}
@@ -9,8 +9,8 @@ add_library(libcoingecko-v3 SHARED
     ${libcoingecko-v3-private-sources}
 )
     
-target_include_directories(libcoingecko-v3 PUBLIC includes)
-target_include_directories(libcoingecko-v3 PRIVATE src)
+target_include_directories(libcoingecko-v3 PUBLIC public/includes)
+target_include_directories(libcoingecko-v3 PRIVATE private/src)
 
 target_link_libraries(libcoingecko-v3 PRIVATE
     range-v3::concepts
