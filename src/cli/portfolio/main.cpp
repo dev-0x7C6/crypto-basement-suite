@@ -1,14 +1,16 @@
 #include <CLI/CLI.hpp>
 #include <fmt/format.h>
+#include <libblockfrost/public/includes/libblockfrost/v0/balance.hpp>
 #include <nlohmann/json.hpp>
+#include <range/v3/view/filter.hpp>
 #include <range/v3/view/join.hpp>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
-#include <chrono>
+#include <map>
 #include <optional>
-#include <sstream>
-#include <unordered_map>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include <libcoingecko/v3/all.hpp>
@@ -39,24 +41,35 @@ auto read_input_files(const std::vector<std::string> &files) -> std::vector<std:
     return ret;
 }
 
+auto read_wallet_files(const std::vector<std::string> &files) -> std::vector<std::pair<std::string, std::string>> {
+    std::vector<std::pair<std::string, std::string>> ret;
+    for (auto &&file : files) {
+        spdlog::info("reading data from {}", file);
+        CSVReader reader(file);
+        for (auto &&row : reader)
+            ret.emplace_back(std::make_pair(row[0].get<std::string>(), row[1].get<std::string>()));
+    }
+    return ret;
+}
+
 auto main(int argc, char **argv) -> int {
     CLI::App app("portfolio");
-    std::vector<std::string> files;
-    auto input_file_opt = app.add_option("-i,--input,input", files, "input json")->required();
+    std::vector<std::string> quantity_csv_files;
+    std::vector<std::string> wallet_csv_files;
+    auto input_file_opt = app.add_option("-i,--input,input", quantity_csv_files, "csv format <coin, quantity>")->required();
+    auto wallet_addresses_opt = app.add_option("-w,--wallet-addresses,wallet-addresses", wallet_csv_files, "csv format <coin, address>");
     input_file_opt->allow_extra_args()->check(CLI::ExistingFile);
     CLI11_PARSE(app, argc, argv);
 
     auto console = spdlog::stdout_color_mt("console");
     spdlog::set_pattern("%v");
 
-    const auto input = read_input_files(files);
+    auto input = read_input_files(quantity_csv_files);
+    auto wallets = read_wallet_files(wallet_csv_files);
 
-    std::ofstream output("output.csv");
-    auto writer = csv::make_csv_writer(output);
-    writer << std::vector<std::string>({"coin", "value"});
-    for (auto &&[coin, count] : input) {
-        writer << std::make_tuple(coin, count);
-    }
+    for (auto &&[coin, address] : wallets)
+        if (coin == "cardano")
+            input.emplace_back(std::make_pair(coin, blockfrost::v0::accounts_balance(address).value_or(0.0)));
 
     const auto req = coingecko::v3::simple::price::query({
         .ids = input | ranges::views::transform([](auto &&p) { return p.first; }) | ranges::to<std::vector<std::string>>(),
