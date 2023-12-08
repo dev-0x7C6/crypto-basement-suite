@@ -52,13 +52,23 @@ auto read_wallet_files(const std::vector<std::string> &files) -> std::vector<std
     return ret;
 }
 
+struct share {
+    std::string asset;
+    double share{};
+    double quantity{};
+};
+
 auto main(int argc, char **argv) -> int {
     CLI::App app("portfolio");
+
     std::vector<std::string> quantity_csv_files;
     std::vector<std::string> wallet_csv_files;
-    auto input_file_opt = app.add_option("-i,--input,input", quantity_csv_files, "csv format <coin, quantity>")->required();
-    auto wallet_addresses_opt = app.add_option("-w,--wallet-addresses,wallet-addresses", wallet_csv_files, "csv format <coin, address>");
-    input_file_opt->allow_extra_args()->check(CLI::ExistingFile);
+    std::string preferred_currency{"usd"};
+
+    app.add_option("-i,--input,input", quantity_csv_files, "csv format <coin, quantity>")->required()->allow_extra_args()->check(CLI::ExistingFile);
+    app.add_option("-w,--wallet-addresses,wallet-addresses", wallet_csv_files, "csv format <coin, address>");
+    app.add_option("-p,--preferred-currency,preferred-currency", preferred_currency, "show value in currency");
+    CLI11_PARSE(app, argc, argv);
     CLI11_PARSE(app, argc, argv);
 
     auto console = spdlog::stdout_color_mt("console");
@@ -73,7 +83,7 @@ auto main(int argc, char **argv) -> int {
 
     const auto req = coingecko::v3::simple::price::query({
         .ids = input | ranges::views::transform([](auto &&p) { return p.first; }) | ranges::to<std::vector<std::string>>(),
-        .vs_currencies = {"usd", "btc", "pln", "sats", "eur"},
+        .vs_currencies = {"usd", "btc", "pln", "sats", "eur", preferred_currency},
     });
 
     if (!req) {
@@ -101,16 +111,33 @@ auto main(int argc, char **argv) -> int {
         spdlog::info("");
     }
 
-    spdlog::info("+ shares");
-    for (auto &&[portfolio_asset, portfolio_ballance] : portfolio) {
-        spdlog::info("  + {}", portfolio_asset);
-        for (auto &&[asset, prices] : summary)
-            if (portfolio_asset == asset) {
-                const auto value = portfolio_ballance * prices.at("btc").value;
-                spdlog::info("   -> {:.2f}% [{:f}]", value / total["btc"] * 100.0, portfolio_ballance);
-            }
+    std::vector<share> shares;
+    const auto total_in_btc = total["btc"];
 
-        spdlog::info("");
+    for (auto &&[asset, portfolio_ballance] : portfolio) {
+        if (!summary.contains(asset)) continue;
+
+        const auto &prices = summary.at(asset);
+        const auto value = portfolio_ballance * prices.at("btc").value;
+
+        shares.push_back({
+            .asset = asset,
+            .share = value / total_in_btc * 100.0,
+            .quantity = portfolio_ballance,
+        });
+    }
+
+    ranges::sort(shares, [](auto &&l, auto &&r) {
+        return l.share > r.share;
+    });
+
+    spdlog::info("+ shares");
+    for (auto &&share : shares) {
+        if (!summary.contains(share.asset)) continue;
+
+        const auto &prices = summary.at(share.asset);
+        const auto value = prices.at(preferred_currency).value * share.quantity;
+        spdlog::info(" {:>20}: {:.2f}%, {:.2f} {}", share.asset, share.share, value, preferred_currency);
     }
 
     spdlog::info("+ total");
