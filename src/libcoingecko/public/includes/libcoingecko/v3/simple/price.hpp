@@ -2,7 +2,7 @@
 
 #include <libcoingecko/v3/options.hpp>
 
-#include <unordered_map>
+#include <map>
 #include <vector>
 
 using strings = std::vector<std::string>;
@@ -26,7 +26,7 @@ struct price {
     double change_24h{};
 };
 
-using prices = std::unordered_map<std::string, std::unordered_map<std::string, struct price>>;
+using prices = std::map<std::string, std::map<std::string, struct price>>;
 
 auto query(const parameters & = {}, const options & = {}) -> std::expected<prices, error>;
 

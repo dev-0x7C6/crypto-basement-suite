@@ -1,7 +1,7 @@
 #include <CLI/CLI.hpp>
 #include <fmt/format.h>
+
 #include <libblockfrost/public/includes/libblockfrost/v0/balance.hpp>
-#include <nlohmann/json.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/join.hpp>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -13,17 +13,15 @@
 #include <utility>
 #include <vector>
 
-#include <libcoingecko/v3/all.hpp>
-#include <networking/downloader.hpp>
+#include <csv.hpp>
 #include <types.hpp>
 
-#include <csv.hpp>
+#include <libcoingecko/v3/simple/price.hpp>
 
 using namespace csv;
 
 using namespace ranges;
 using namespace std::chrono_literals;
-using namespace nlohmann;
 
 auto read_input_files(const std::vector<std::string> &files) -> std::vector<std::pair<std::string, double>> {
     std::vector<std::pair<std::string, double>> ret;
@@ -58,6 +56,11 @@ struct share {
     double quantity{};
 };
 
+auto as_btc(const std::map<std::string, struct coingecko::v3::simple::price::price> &prices) -> std::optional<double> {
+    if (!prices.contains("btc")) return {};
+    return prices.at("btc").value;
+}
+
 auto main(int argc, char **argv) -> int {
     CLI::App app("portfolio");
 
@@ -68,7 +71,6 @@ auto main(int argc, char **argv) -> int {
     app.add_option("-i,--input,input", quantity_csv_files, "csv format <coin, quantity>")->required()->allow_extra_args()->check(CLI::ExistingFile);
     app.add_option("-w,--wallet-addresses,wallet-addresses", wallet_csv_files, "csv format <coin, address>");
     app.add_option("-p,--preferred-currency,preferred-currency", preferred_currency, "show value in currency");
-    CLI11_PARSE(app, argc, argv);
     CLI11_PARSE(app, argc, argv);
 
     auto console = spdlog::stdout_color_mt("console");
@@ -99,31 +101,31 @@ auto main(int argc, char **argv) -> int {
 
     std::map<std::string, double> total;
 
-    for (auto &&[portfolio_asset, portfolio_ballance] : portfolio) {
-        spdlog::info("+ {} [{:f}]", portfolio_asset, portfolio_ballance);
-        for (auto &&[asset, prices] : summary)
-            if (portfolio_asset == asset)
-                for (auto &&[currency, valuation] : prices) {
-                    const auto value = portfolio_ballance * valuation.value;
-                    spdlog::info(" -> /{}: {:f}", currency, value);
-                    total[currency] += value;
-                }
+    for (auto &&[asset, ballance] : portfolio) {
+        const auto &prices = summary.at(asset);
+        spdlog::info("+ {} [{:f}]", asset, ballance);
+
+        for (auto &&[currency, valuation] : prices) {
+            const auto value = ballance * valuation.value;
+            total[currency] += value;
+            spdlog::info(" -> /{}: {:f}", currency, value);
+        }
         spdlog::info("");
     }
 
     std::vector<share> shares;
     const auto total_in_btc = total["btc"];
 
-    for (auto &&[asset, portfolio_ballance] : portfolio) {
+    for (auto &&[asset, ballance] : portfolio) {
         if (!summary.contains(asset)) continue;
 
         const auto &prices = summary.at(asset);
-        const auto value = portfolio_ballance * prices.at("btc").value;
+        const auto value = ballance * as_btc(prices).value_or(0.0);
 
         shares.push_back({
             .asset = asset,
             .share = value / total_in_btc * 100.0,
-            .quantity = portfolio_ballance,
+            .quantity = ballance,
         });
     }
 

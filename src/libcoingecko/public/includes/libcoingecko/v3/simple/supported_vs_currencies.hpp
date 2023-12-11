@@ -2,7 +2,7 @@
 
 #include <libcoingecko/v3/options.hpp>
 
-#include <unordered_map>
+#include <map>
 #include <vector>
 
 namespace coingecko::v3::simple::supported_vs_currencies {

@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <expected>
 #include <string>
-#include <unordered_map>
+#include <map>
 
 namespace coingecko::v3::global {
 struct data {
@@ -15,9 +15,9 @@ struct data {
     double ended_icos{};
     double markets{};
 
-    std::unordered_map<std::string, double> total_market_cap;
-    std::unordered_map<std::string, double> total_volume;
-    std::unordered_map<std::string, double> market_cap_percentage;
+    std::map<std::string, double> total_market_cap;
+    std::map<std::string, double> total_volume;
+    std::map<std::string, double> market_cap_percentage;
 
     double market_cap_change_percentage_24h_usd{};
     std::uint64_t updated_at{};
