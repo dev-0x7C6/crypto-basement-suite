@@ -100,17 +100,18 @@ auto main(int argc, char **argv) -> int {
         portfolio[symbol] += balance;
 
     std::map<std::string, double> total;
+    std::map<std::string, double> _24h_change;
 
     for (auto &&[asset, ballance] : portfolio) {
         const auto &prices = summary.at(asset);
-        spdlog::info("+ {} [{:f}]", asset, ballance);
+        spdlog::info("\n+ {} [{:f}]", asset, ballance);
 
         for (auto &&[currency, valuation] : prices) {
             const auto value = ballance * valuation.value;
             total[currency] += value;
+            _24h_change[asset] = valuation.change_24h;
             spdlog::info(" -> /{}: {:f}", currency, value);
         }
-        spdlog::info("");
     }
 
     std::vector<share> shares;
@@ -129,17 +130,27 @@ auto main(int argc, char **argv) -> int {
         });
     }
 
+    ranges::sort(shares, [&](auto &&l, auto &&r) {
+        return _24h_change.at(l.asset) > _24h_change.at(r.asset);
+    });
+
+    spdlog::info("\n+ 24h change (sorted):");
+    for (auto &&share : shares) {
+        const auto &change = _24h_change.at(share.asset);
+        spdlog::info(" {:>20}: \033[32m{:+.2f}%\033[m", share.asset, change);
+    }
+
     ranges::sort(shares, [](auto &&l, auto &&r) {
         return l.share > r.share;
     });
 
-    spdlog::info("+ shares");
+    spdlog::info("\n+ shares");
     for (auto &&share : shares) {
-        if (!summary.contains(share.asset)) continue;
-
         const auto &prices = summary.at(share.asset);
+        const auto &change = _24h_change.at(share.asset);
         const auto value = prices.at(preferred_currency).value * share.quantity;
-        spdlog::info(" {:>20}: {:.2f}%, {:.2f} {}", share.asset, share.share, value, preferred_currency);
+        spdlog::info(" {:>20}: {:.2f}%, {:.2f} {}, 24h: \033[32m{:+.2f}%\033[m", share.asset, share.share, value, preferred_currency,
+            change);
     }
 
     spdlog::info("+ total");
