@@ -1,5 +1,9 @@
 #include <CLI/CLI.hpp>
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <fmt/format.h>
+#include <numeric>
 
 #include <libblockfrost/public/includes/libblockfrost/v0/balance.hpp>
 #include <range/v3/view/filter.hpp>
@@ -101,6 +105,8 @@ auto main(int argc, char **argv) -> int {
 
     std::map<std::string, double> total;
     std::map<std::string, double> _24h_change;
+    double _24h_min{};
+    double _24h_max{};
 
     for (auto &&[asset, ballance] : portfolio) {
         const auto &prices = summary.at(asset);
@@ -108,8 +114,12 @@ auto main(int argc, char **argv) -> int {
 
         for (auto &&[currency, valuation] : prices) {
             const auto value = ballance * valuation.value;
+            const auto _24h = valuation.change_24h;
             total[currency] += value;
-            _24h_change[asset] = valuation.change_24h;
+            _24h_change[asset] = _24h;
+            _24h_min = std::min(_24h_min, _24h);
+            _24h_max = std::max(_24h_max, _24h);
+
             spdlog::info(" -> /{}: {:f}", currency, value);
         }
     }
@@ -134,10 +144,24 @@ auto main(int argc, char **argv) -> int {
         return _24h_change.at(l.asset) > _24h_change.at(r.asset);
     });
 
+    auto colorize = [](auto &&text, std::uint8_t r, std::uint8_t g, std::uint8_t b) {
+        return fmt::format("\x1b[38;2;{};{};{}m{}\033[m", r, g, b, text);
+    };
+
+    auto colorized_percent = [&](double value, double min, double max) {
+        constexpr auto _max = +2.5;
+        constexpr auto _min = -2.5;
+        const auto c = std::clamp(value, _min, _max);
+        const auto g = 255 * (c - _min) / (_max - _min);
+        const auto r = 255 - g;
+        return colorize(std::format("{:+.2f}%", value), r, g, 0);
+    };
+
     spdlog::info("\n+ 24h change (sorted):");
     for (auto &&share : shares) {
         const auto &change = _24h_change.at(share.asset);
-        spdlog::info(" {:>20}: \033[32m{:+.2f}%\033[m", share.asset, change);
+        const auto p = colorized_percent(change, _24h_min, _24h_max);
+        spdlog::info(" {:>20}: {}", share.asset, p);
     }
 
     ranges::sort(shares, [](auto &&l, auto &&r) {
@@ -149,8 +173,9 @@ auto main(int argc, char **argv) -> int {
         const auto &prices = summary.at(share.asset);
         const auto &change = _24h_change.at(share.asset);
         const auto value = prices.at(preferred_currency).value * share.quantity;
-        spdlog::info(" {:>20}: {:.2f}%, {:.2f} {}, 24h: \033[32m{:+.2f}%\033[m", share.asset, share.share, value, preferred_currency,
-            change);
+        const auto p = colorized_percent(change, _24h_min, _24h_max);
+        spdlog::info(" {:>20}: {:.2f}%, {:.2f} {}, 24h: {}", share.asset, share.share, value, preferred_currency,
+            p);
     }
 
     spdlog::info("+ total");
