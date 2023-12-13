@@ -20,6 +20,7 @@
 #include <csv.hpp>
 #include <types.hpp>
 
+#include <libcoingecko/v3/global/global.hpp>
 #include <libcoingecko/v3/simple/price.hpp>
 
 using namespace csv;
@@ -87,17 +88,20 @@ auto main(int argc, char **argv) -> int {
         if (coin == "cardano")
             input.emplace_back(std::make_pair(coin, blockfrost::v0::accounts_balance(address).value_or(0.0)));
 
-    const auto req = coingecko::v3::simple::price::query({
+    const auto request_price = coingecko::v3::simple::price::query({
         .ids = input | ranges::views::transform([](auto &&p) { return p.first; }) | ranges::to<std::vector<std::string>>(),
         .vs_currencies = {"usd", "btc", "pln", "sats", "eur", preferred_currency},
     });
 
-    if (!req) {
+    const auto request_global_stats = coingecko::v3::global::list();
+
+    if (!request_price || !request_global_stats) {
         spdlog::error("invalid coingecko data");
         return 1;
     }
 
-    auto &&summary = req.value();
+    auto &&summary = request_price.value();
+    auto &&global_market = request_global_stats.value();
 
     std::map<std::string, double> portfolio;
     for (auto [symbol, balance] : input)
@@ -161,7 +165,8 @@ auto main(int argc, char **argv) -> int {
     for (auto &&share : shares) {
         const auto &change = _24h_change.at(share.asset);
         const auto p = colorized_percent(change, _24h_min, _24h_max);
-        spdlog::info(" {:>20}: {}", share.asset, p);
+        const auto x = summary.at(share.asset).at(preferred_currency).value;
+        spdlog::info(" {:>20}: {} [{:.2f} {}]", share.asset, p, x, preferred_currency);
     }
 
     ranges::sort(shares, [](auto &&l, auto &&r) {
@@ -178,7 +183,11 @@ auto main(int argc, char **argv) -> int {
             p);
     }
 
-    spdlog::info("+ total");
+    spdlog::info("\n+ global market");
+    spdlog::info(" -> {:.3f} T", global_market.total_market_cap.at("usd") / 1000 / 1000 / 1000 / 1000);
+    spdlog::info(" -> {}", colorized_percent(global_market.market_cap_change_percentage_24h_usd, -5, 5));
+
+    spdlog::info("\n+ total");
     for (auto &&[currency, valuation] : total)
         spdlog::info(" -> /{}: {:.2f}", currency, valuation);
 
