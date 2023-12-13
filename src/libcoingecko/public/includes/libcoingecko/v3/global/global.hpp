@@ -23,6 +23,6 @@ struct data {
     std::uint64_t updated_at{};
 };
 
-auto list() -> std::expected<data, error>;
+auto list(const options & = {}) -> std::expected<data, error>;
 
 } // namespace coingecko::v3::global

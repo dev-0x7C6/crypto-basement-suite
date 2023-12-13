@@ -7,7 +7,7 @@ auto list(const options &opts) -> std::expected<data, error> {
     const auto json = request("global", opts);
     if (!json) return std::unexpected(json.error());
 
-    auto &&src = json.value();
+    auto &&src = json.value()["data"];
     struct data data;
     set(src, "active_cryptocurrencies", data.active_cryptocurrencies);
     set(src, "upcoming_icos", data.upcoming_icos);
