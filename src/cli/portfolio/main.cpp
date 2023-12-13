@@ -69,20 +69,20 @@ auto as_btc(const std::map<std::string, struct coingecko::v3::simple::price::pri
 auto main(int argc, char **argv) -> int {
     CLI::App app("portfolio");
 
-    std::vector<std::string> quantity_csv_files;
-    std::vector<std::string> wallet_csv_files;
+    std::vector<std::string> ballances;
+    std::vector<std::string> track_wallets;
     std::string preferred_currency{"usd"};
 
-    app.add_option("-i,--input,input", quantity_csv_files, "csv format <coin, quantity>")->required()->allow_extra_args()->check(CLI::ExistingFile);
-    app.add_option("-w,--wallet-addresses,wallet-addresses", wallet_csv_files, "csv format <coin, address>");
-    app.add_option("-p,--preferred-currency,preferred-currency", preferred_currency, "show value in currency");
+    app.add_option("-i,--input", ballances, "csv format <coin, quantity>")->required()->allow_extra_args()->check(CLI::ExistingFile);
+    app.add_option("-t,--track-wallets", track_wallets, "csv format <coin, address>");
+    app.add_option("-p,--preferred-currency", preferred_currency, "show value in currency");
     CLI11_PARSE(app, argc, argv);
 
     auto console = spdlog::stdout_color_mt("console");
     spdlog::set_pattern("%v");
 
-    auto input = read_input_files(quantity_csv_files);
-    auto wallets = read_wallet_files(wallet_csv_files);
+    auto input = read_input_files(ballances);
+    auto wallets = read_wallet_files(track_wallets);
 
     for (auto &&[coin, address] : wallets)
         if (coin == "cardano")
