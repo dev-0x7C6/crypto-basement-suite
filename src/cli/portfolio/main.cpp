@@ -1,8 +1,10 @@
+#include "libcoingecko/v3/options.hpp"
 #include <CLI/CLI.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <fmt/format.h>
+#include <future>
 #include <numeric>
 
 #include <libblockfrost/public/includes/libblockfrost/v0/balance.hpp>
@@ -14,6 +16,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -66,6 +69,35 @@ auto as_btc(const std::map<std::string, struct coingecko::v3::simple::price::pri
     return prices.at("btc").value;
 }
 
+template <typename T>
+struct task {
+    std::future<T> future;
+    std::jthread thread;
+
+    auto get() {
+        if (value)
+            return value.value();
+
+        future.wait();
+        value = future.get();
+        return value.value();
+    };
+
+    std::optional<T> value;
+};
+
+template <typename T>
+auto schedule(std::function<T()> &&callable) -> task<T> {
+    std::packaged_task task([callable{std::move(callable)}]() -> T {
+        return callable();
+    });
+
+    return {
+        .future = task.get_future(),
+        .thread = std::jthread(std::move(task)),
+    };
+}
+
 auto main(int argc, char **argv) -> int {
     CLI::App app("portfolio");
 
@@ -84,24 +116,41 @@ auto main(int argc, char **argv) -> int {
     auto input = read_input_files(ballances);
     auto wallets = read_wallet_files(track_wallets);
 
+    std::vector<task<std::optional<std::pair<std::string, double>>>> request_wallet_ballances;
+
     for (auto &&[coin, address] : wallets)
-        if (coin == "cardano")
-            input.emplace_back(std::make_pair(coin, blockfrost::v0::accounts_balance(address).value_or(0.0)));
+        request_wallet_ballances.emplace_back(schedule(std::function{[=]() -> std::optional<std::pair<std::string, double>> {
+            if (coin != "cardano") return {};
+            spdlog::info("blockfrost::v0: requesting wallet ballance {}", address);
+            return std::make_pair(coin, blockfrost::v0::accounts_balance(address).value_or(0.0));
+        }}));
 
-    const auto request_price = coingecko::v3::simple::price::query({
-        .ids = input | ranges::views::transform([](auto &&p) { return p.first; }) | ranges::to<std::vector<std::string>>(),
-        .vs_currencies = {"usd", "btc", "pln", "sats", "eur", preferred_currency},
-    });
+    for (auto &&request : request_wallet_ballances) {
+        const auto value = request.get();
+        if (value)
+            input.emplace_back(std::move(value.value()));
+    }
 
-    const auto request_global_stats = coingecko::v3::global::list();
+    auto request_price = schedule(std::function{[input, preferred_currency]() {
+        spdlog::info("coingecko::v3: requesting prices");
+        return coingecko::v3::simple::price::query({
+            .ids = input | ranges::views::transform([](auto &&p) { return p.first; }) | ranges::to<std::vector<std::string>>(),
+            .vs_currencies = {"usd", "btc", "pln", "sats", "eur", preferred_currency},
+        });
+    }});
 
-    if (!request_price || !request_global_stats) {
+    auto request_global_stats = schedule(std::function{[input, preferred_currency]() {
+        spdlog::info("coingecko::v3: requesting global market data");
+        return coingecko::v3::global::list();
+    }});
+
+    if (!request_price.get() || !request_global_stats.get()) {
         spdlog::error("invalid coingecko data");
         return 1;
     }
 
-    auto &&summary = request_price.value();
-    auto &&global_market = request_global_stats.value();
+    const auto summary = request_price.get().value();
+    const auto global_market = request_global_stats.get().value();
 
     std::map<std::string, double> portfolio;
     for (auto [symbol, balance] : input)
