@@ -1,3 +1,4 @@
+#include "libblockfrost/v0/options.hpp"
 #include "libcoingecko/v3/options.hpp"
 #include <CLI/CLI.hpp>
 #include <algorithm>
@@ -98,6 +99,13 @@ auto schedule(std::function<T()> &&callable) -> task<T> {
     };
 }
 
+namespace services {
+struct configuration {
+    blockfrost::v0::options blockfrost;
+    coingecko::v3::options coingecko;
+};
+} // namespace services
+
 auto main(int argc, char **argv) -> int {
     CLI::App app("portfolio");
 
@@ -105,9 +113,13 @@ auto main(int argc, char **argv) -> int {
     std::vector<std::string> track_wallets;
     std::string preferred_currency{"usd"};
 
+    services::configuration config;
+
     app.add_option("-i,--input", ballances, "csv format <coin, quantity>")->required()->allow_extra_args()->check(CLI::ExistingFile);
     app.add_option("-t,--track-wallets", track_wallets, "csv format <coin, address>");
     app.add_option("-p,--preferred-currency", preferred_currency, "show value in currency");
+    app.add_option("--blockfrost-api-key", config.blockfrost.key, "https://blockfrost.io/");
+    app.add_option("--coingecko-api-key", config.coingecko.key, "https://www.coingecko.com/en/api");
     CLI11_PARSE(app, argc, argv);
 
     auto console = spdlog::stdout_color_mt("console");
@@ -121,8 +133,16 @@ auto main(int argc, char **argv) -> int {
     for (auto &&[coin, address] : wallets)
         request_wallet_ballances.emplace_back(schedule(std::function{[=]() -> std::optional<std::pair<std::string, double>> {
             if (coin != "cardano") return {};
-            spdlog::info("blockfrost::v0: requesting wallet ballance {}", address);
-            return std::make_pair(coin, blockfrost::v0::accounts_balance(address).value_or(0.0));
+            spdlog::info("blockfrost::v0: requesting wallet balance {}", address);
+            const auto balance = blockfrost::v0::accounts_balance(address, config.blockfrost);
+
+            if (!balance) {
+                spdlog::error("blockfrost::v0: unable to request {}", address);
+                return std::make_pair(coin, 0.0);
+            }
+
+            spdlog::info("blockfrost::v0: {}, balance {:.2f}", address, balance.value());
+            return std::make_pair(coin, balance.value());
         }}));
 
     for (auto &&request : request_wallet_ballances) {
