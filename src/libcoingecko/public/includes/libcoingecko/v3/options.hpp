@@ -23,6 +23,7 @@ enum class error {
 
 struct options {
     std::string provider{"https://api.coingecko.com/api/v3"};
+    std::string key;
 };
 
 } // namespace coingecko::v3
