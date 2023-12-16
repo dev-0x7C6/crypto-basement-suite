@@ -23,7 +23,7 @@ enum class error {
 
 struct options {
     std::string provider{"https://cardano-mainnet.blockfrost.io/api/v0"};
-    std::string key{"mainnetbKnPVcIGvrwS2cZdMDxekl1M30iD4EqO"}; // test proposes
+    std::string key;
 };
 
 } // namespace blockfrost::v0
