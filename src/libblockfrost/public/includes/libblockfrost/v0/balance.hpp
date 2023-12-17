@@ -10,7 +10,7 @@ namespace blockfrost::v0 {
 
 struct asset {
     std::string unit;
-    std::uint64_t quantity{};
+    double quantity{};
 };
 
 auto address_balance(const std::string &address, const options &opts = {}) -> std::optional<double>;
