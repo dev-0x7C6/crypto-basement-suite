@@ -129,8 +129,9 @@ auto main(int argc, char **argv) -> int {
     auto wallets = read_wallet_files(track_wallets);
 
     std::vector<task<std::optional<std::pair<std::string, double>>>> request_wallet_ballances;
+    std::vector<task<std::vector<blockfrost::v0::asset>>> request_wallet_assets;
 
-    for (auto &&[coin, address] : wallets)
+    for (auto &&[coin, address] : wallets) {
         request_wallet_ballances.emplace_back(schedule(std::function{[=]() -> std::optional<std::pair<std::string, double>> {
             if (coin != "cardano") return {};
             spdlog::info("blockfrost::v0: requesting wallet balance {}", address);
@@ -144,6 +145,16 @@ auto main(int argc, char **argv) -> int {
             spdlog::info("blockfrost::v0: {}, balance {:.2f}", address, balance.value());
             return std::make_pair(coin, balance.value());
         }}));
+
+        request_wallet_assets.emplace_back(schedule(std::function{[=]() -> std::vector<blockfrost::v0::asset> {
+            if (coin != "cardano") return {};
+            spdlog::info("blockfrost::v0: requesting wallet assets {}", address);
+            auto ret = blockfrost::v0::accounts_assets_balance(address, config.blockfrost);
+
+            spdlog::info("blockfrost::v0: found {} assets", ret.size());
+            return ret;
+        }}));
+    }
 
     for (auto &&request : request_wallet_ballances) {
         const auto value = request.get();
