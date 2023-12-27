@@ -2,11 +2,9 @@
 #include "libcoingecko/v3/options.hpp"
 #include <CLI/CLI.hpp>
 #include <algorithm>
-#include <cmath>
 #include <cstdint>
 #include <fmt/format.h>
 #include <future>
-#include <numeric>
 
 #include <libblockfrost/public/includes/libblockfrost/v0/balance.hpp>
 #include <range/v3/view/filter.hpp>
@@ -24,6 +22,7 @@
 #include <csv.hpp>
 #include <types.hpp>
 
+#include <libcoingecko/v3/coins/list.hpp>
 #include <libcoingecko/v3/global/global.hpp>
 #include <libcoingecko/v3/simple/price.hpp>
 
@@ -99,12 +98,33 @@ auto schedule(std::function<T()> &&callable) -> task<T> {
     };
 }
 
-namespace services {
 struct configuration {
     blockfrost::v0::options blockfrost;
     coingecko::v3::options coingecko;
+
+    struct {
+        bool balances{false};
+        bool shares{false};
+    } hide;
 };
-} // namespace services
+
+namespace format {
+
+auto share(double value, const configuration &cfg) noexcept -> std::string {
+    if (cfg.hide.balances)
+        return "---%";
+
+    return fmt::format("{:.2f}%", value);
+}
+
+auto price(double value, const configuration &cfg) noexcept -> std::string {
+    if (cfg.hide.balances)
+        return "---";
+
+    return fmt::format("{:.2f}", value);
+}
+
+} // namespace format
 
 auto main(int argc, char **argv) -> int {
     CLI::App app("portfolio");
@@ -113,13 +133,15 @@ auto main(int argc, char **argv) -> int {
     std::vector<std::string> track_wallets;
     std::string preferred_currency{"usd"};
 
-    services::configuration config;
+    configuration config;
 
     app.add_option("-i,--input", ballances, "csv format <coin, quantity>")->required()->allow_extra_args()->check(CLI::ExistingFile);
     app.add_option("-t,--track-wallets", track_wallets, "csv format <coin, address>");
     app.add_option("-p,--preferred-currency", preferred_currency, "show value in currency");
     app.add_option("--blockfrost-api-key", config.blockfrost.key, "https://blockfrost.io/");
     app.add_option("--coingecko-api-key", config.coingecko.key, "https://www.coingecko.com/en/api");
+    app.add_flag("--hide-balances", config.hide.balances, "hide balances");
+    app.add_flag("--hide-shares", config.hide.shares, "hide shares");
     CLI11_PARSE(app, argc, argv);
 
     auto console = spdlog::stdout_color_mt("console");
@@ -130,9 +152,15 @@ auto main(int argc, char **argv) -> int {
 
     std::vector<task<std::optional<std::pair<std::string, double>>>> request_wallet_ballances;
     std::vector<task<std::vector<blockfrost::v0::asset>>> request_wallet_assets;
+    std::map<std::string, std::string> contract_to_symbol;
+
+    const auto assets = coingecko::v3::coins::list::query({}, config.coingecko);
+    for (auto &&asset : assets.value())
+        for (auto &&[_, contract] : asset.platforms)
+            contract_to_symbol[contract] = asset.id;
 
     for (auto &&[coin, address] : wallets) {
-        request_wallet_ballances.emplace_back(schedule(std::function{[=]() -> std::optional<std::pair<std::string, double>> {
+        request_wallet_ballances.emplace_back(schedule(std::function{[coin, address, &config]() -> std::optional<std::pair<std::string, double>> {
             if (coin != "cardano") return {};
             spdlog::info("blockfrost::v0: requesting wallet balance {}", address);
             const auto balance = blockfrost::v0::accounts_balance(address, config.blockfrost);
@@ -146,11 +174,10 @@ auto main(int argc, char **argv) -> int {
             return std::make_pair(coin, balance.value());
         }}));
 
-        request_wallet_assets.emplace_back(schedule(std::function{[=]() -> std::vector<blockfrost::v0::asset> {
+        request_wallet_assets.emplace_back(schedule(std::function{[address, coin, &config]() -> std::vector<blockfrost::v0::asset> {
             if (coin != "cardano") return {};
             spdlog::info("blockfrost::v0: requesting wallet assets {}", address);
             auto ret = blockfrost::v0::accounts_assets_balance(address, config.blockfrost);
-
             spdlog::info("blockfrost::v0: found {} assets", ret.size());
             return ret;
         }}));
@@ -160,6 +187,16 @@ auto main(int argc, char **argv) -> int {
         const auto value = request.get();
         if (value)
             input.emplace_back(std::move(value.value()));
+    }
+
+    for (auto &&request : request_wallet_assets) {
+        const auto assets = request.get();
+        for (auto &&asset : assets) {
+            if (!contract_to_symbol.contains(asset.unit)) continue;
+            const auto &info = contract_to_symbol[asset.unit];
+            spdlog::info("found coin asset {}", info);
+            // input.emplace_back(std::make_pair(info, asset.quantity));
+        }
     }
 
     auto request_price = schedule(std::function{[input, preferred_currency]() {
@@ -194,6 +231,9 @@ auto main(int argc, char **argv) -> int {
 
     for (auto &&[asset, ballance] : portfolio) {
         const auto &prices = summary.at(asset);
+
+        if (config.hide.balances)
+            spdlog::info("\n+ {} [---]", asset);
         spdlog::info("\n+ {} [{:f}]", asset, ballance);
 
         for (auto &&[currency, valuation] : prices) {
@@ -203,8 +243,9 @@ auto main(int argc, char **argv) -> int {
             _24h_change[asset] = _24h;
             _24h_min = std::min(_24h_min, _24h);
             _24h_max = std::max(_24h_max, _24h);
+            const auto formatted_price = format::price(value, config);
 
-            spdlog::info(" -> /{}: {:f}", currency, value);
+            spdlog::info(" -> {} {}", formatted_price, currency);
         }
     }
 
@@ -259,7 +300,9 @@ auto main(int argc, char **argv) -> int {
         const auto &change = _24h_change.at(share.asset);
         const auto value = prices.at(preferred_currency).value * share.quantity;
         const auto p = colorized_percent(change, _24h_min, _24h_max);
-        spdlog::info(" {:>20}: {:.2f}%, {:.2f} {}, 24h: {}", share.asset, share.share, value, preferred_currency,
+        const auto formatted_share = format::share(share.share, config);
+        const auto formatted_price = format::price(value, config);
+        spdlog::info(" {:>20}: {}, {} {}, 24h: {}", share.asset, formatted_share, formatted_price, preferred_currency,
             p);
     }
 
@@ -269,7 +312,7 @@ auto main(int argc, char **argv) -> int {
 
     spdlog::info("\n+ total");
     for (auto &&[currency, valuation] : total)
-        spdlog::info(" -> /{}: {:.2f}", currency, valuation);
+        spdlog::info(" -> {} {}", format::price(valuation, config), currency);
 
     return 0;
 }
