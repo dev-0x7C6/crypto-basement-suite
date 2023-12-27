@@ -234,7 +234,8 @@ auto main(int argc, char **argv) -> int {
 
         if (config.hide.balances)
             spdlog::info("\n+ {} [---]", asset);
-        spdlog::info("\n+ {} [{:f}]", asset, ballance);
+        else
+            spdlog::info("\n+ {} [{:f}]", asset, ballance);
 
         for (auto &&[currency, valuation] : prices) {
             const auto value = ballance * valuation.value;
@@ -307,8 +308,9 @@ auto main(int argc, char **argv) -> int {
     }
 
     spdlog::info("\n+ global market");
-    spdlog::info(" -> {:.3f} T", global_market.total_market_cap.at("usd") / 1000 / 1000 / 1000 / 1000);
-    spdlog::info(" -> {}", colorized_percent(global_market.market_cap_change_percentage_24h_usd, -5, 5));
+    const auto total_market_cap = fmt::format("{:.3f} T", global_market.total_market_cap.at("usd") / 1000 / 1000 / 1000 / 1000);
+    const auto total_market_cap_change = colorized_percent(global_market.market_cap_change_percentage_24h_usd, -5, 5);
+    spdlog::info(" -> {} {}", total_market_cap, total_market_cap_change);
 
     spdlog::info("\n+ total");
     for (auto &&[currency, valuation] : total)
