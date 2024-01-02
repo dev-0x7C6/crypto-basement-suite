@@ -1,4 +1,10 @@
-add_executable(cbs-portfolio "main.cpp")
+file(GLOB_RECURSE cbs-portfolio-headers *.hpp)
+file(GLOB_RECURSE cbs-portfolio-sources *.cpp)
+
+add_executable(cbs-portfolio
+    ${cbs-portfolio-headers}
+    ${cbs-portfolio-sources}
+)
 
 target_link_libraries(cbs-portfolio
     cbs-networking
