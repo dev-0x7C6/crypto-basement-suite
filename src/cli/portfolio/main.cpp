@@ -3,7 +3,6 @@
 #include <CLI/CLI.hpp>
 
 #include <algorithm>
-#include <cstdint>
 #include <map>
 #include <optional>
 #include <string>
@@ -15,18 +14,19 @@
 
 #include <CLI/CLI.hpp>
 
+#include <libblockfrost/public/includes/libblockfrost/v0/balance.hpp>
 #include <libcoingecko/v3/coins/list.hpp>
 #include <libcoingecko/v3/global/global.hpp>
 #include <libcoingecko/v3/simple/price.hpp>
 
-#include <libblockfrost/public/includes/libblockfrost/v0/balance.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/join.hpp>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
-#include "colors.hpp"
-#include "threading.hpp"
+#include "cli/cli.hpp"
+#include "helpers/colors.hpp"
+#include "helpers/threading.hpp"
 
 using namespace csv;
 
@@ -71,16 +71,6 @@ auto as_btc(const std::map<std::string, struct coingecko::v3::simple::price::pri
     return prices.at("btc").value;
 }
 
-struct configuration {
-    blockfrost::v0::options blockfrost;
-    coingecko::v3::options coingecko;
-
-    struct {
-        bool balances{false};
-        bool shares{false};
-    } hide;
-};
-
 namespace format {
 
 auto share(double value, const configuration &cfg) noexcept -> std::string {
@@ -100,28 +90,18 @@ auto price(double value, const configuration &cfg) noexcept -> std::string {
 } // namespace format
 
 auto main(int argc, char **argv) -> int {
-    CLI::App app("portfolio");
 
-    std::vector<std::string> ballances;
-    std::vector<std::string> track_wallets;
-    std::string preferred_currency{"usd"};
+    auto expected_config = cli::parse(argc, argv);
+    if (!expected_config)
+        return expected_config.error();
 
-    configuration config;
-
-    app.add_option("-i,--input", ballances, "csv format <coin, quantity>")->required()->allow_extra_args()->check(CLI::ExistingFile);
-    app.add_option("-t,--track-wallets", track_wallets, "csv format <coin, address>");
-    app.add_option("-p,--preferred-currency", preferred_currency, "show value in currency");
-    app.add_option("--blockfrost-api-key", config.blockfrost.key, "https://blockfrost.io/");
-    app.add_option("--coingecko-api-key", config.coingecko.key, "https://www.coingecko.com/en/api");
-    app.add_flag("--hide-balances", config.hide.balances, "hide balances");
-    app.add_flag("--hide-shares", config.hide.shares, "hide shares");
-    CLI11_PARSE(app, argc, argv);
+    const auto config = std::move(expected_config.value());
 
     auto console = spdlog::stdout_color_mt("console");
     spdlog::set_pattern("%v");
 
-    auto input = read_input_files(ballances);
-    auto wallets = read_wallet_files(track_wallets);
+    auto input = read_input_files(config.ballances);
+    auto wallets = read_wallet_files(config.track_wallets);
 
     std::vector<task<std::optional<std::pair<std::string, double>>>> request_wallet_ballances;
     std::vector<task<std::vector<blockfrost::v0::asset>>> request_wallet_assets;
@@ -172,15 +152,15 @@ auto main(int argc, char **argv) -> int {
         }
     }
 
-    auto request_price = schedule(std::function{[input, preferred_currency]() {
+    auto request_price = schedule(std::function{[input, &config]() {
         spdlog::info("coingecko::v3: requesting prices");
         return coingecko::v3::simple::price::query({
             .ids = input | ranges::views::transform([](auto &&p) { return p.first; }) | ranges::to<std::vector<std::string>>(),
-            .vs_currencies = {"usd", "btc", "pln", "sats", "eur", preferred_currency},
+            .vs_currencies = {"usd", "btc", "pln", "sats", "eur", config.preferred_currency},
         });
     }});
 
-    auto request_global_stats = schedule(std::function{[input, preferred_currency]() {
+    auto request_global_stats = schedule(std::function{[input]() {
         spdlog::info("coingecko::v3: requesting global market data");
         return coingecko::v3::global::list();
     }});
@@ -255,8 +235,8 @@ auto main(int argc, char **argv) -> int {
     for (auto &&share : shares) {
         const auto &change = _24h_change.at(share.asset);
         const auto p = colorized_percent(change, _24h_min, _24h_max);
-        const auto x = summary.at(share.asset).at(preferred_currency).value;
-        spdlog::info(" {:>20}: {} [{:.2f} {}]", share.asset, p, x, preferred_currency);
+        const auto x = summary.at(share.asset).at(config.preferred_currency).value;
+        spdlog::info(" {:>20}: {} [{:.2f} {}]", share.asset, p, x, config.preferred_currency);
     }
 
     ranges::sort(shares, [](auto &&l, auto &&r) {
@@ -267,11 +247,11 @@ auto main(int argc, char **argv) -> int {
     for (auto &&share : shares) {
         const auto &prices = summary.at(share.asset);
         const auto &change = _24h_change.at(share.asset);
-        const auto value = prices.at(preferred_currency).value * share.quantity;
+        const auto value = prices.at(config.preferred_currency).value * share.quantity;
         const auto p = colorized_percent(change, _24h_min, _24h_max);
         const auto formatted_share = format::share(share.share, config);
         const auto formatted_price = format::price(value, config);
-        spdlog::info(" {:>20}: {}, {} {}, 24h: {}", share.asset, formatted_share, formatted_price, preferred_currency,
+        spdlog::info(" {:>20}: {}, {} {}, 24h: {}", share.asset, formatted_share, formatted_price, config.preferred_currency,
             p);
     }
 
