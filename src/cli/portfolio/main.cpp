@@ -1,9 +1,10 @@
-#include "libblockfrost/v0/options.hpp"
-#include "libcoingecko/v3/options.hpp"
 #include <CLI/CLI.hpp>
 
 #include <algorithm>
+#include <functional>
+#include <iterator>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -24,6 +25,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
+#include "chain/cardano.hpp"
 #include "cli/cli.hpp"
 #include "helpers/colors.hpp"
 #include "helpers/threading.hpp"
@@ -90,21 +92,19 @@ auto price(double value, const configuration &cfg) noexcept -> std::string {
 } // namespace format
 
 auto main(int argc, char **argv) -> int {
-
     auto expected_config = cli::parse(argc, argv);
     if (!expected_config)
         return expected_config.error();
 
-    const auto config = std::move(expected_config.value());
-
-    auto console = spdlog::stdout_color_mt("console");
     spdlog::set_pattern("%v");
+
+    const auto config = std::move(expected_config.value());
 
     auto input = read_input_files(config.ballances);
     auto wallets = read_wallet_files(config.track_wallets);
 
-    std::vector<task<std::optional<std::pair<std::string, double>>>> request_wallet_ballances;
-    std::vector<task<std::vector<blockfrost::v0::asset>>> request_wallet_assets;
+    std::vector<task<std::vector<std::pair<std::string, double>>>> balance_reqs;
+    std::vector<task<std::vector<std::pair<std::string, double>>>> assets_reqs;
     std::map<std::string, std::string> contract_to_symbol;
 
     const auto assets = coingecko::v3::coins::list::query({}, config.coingecko);
@@ -112,41 +112,31 @@ auto main(int argc, char **argv) -> int {
         for (auto &&[_, contract] : asset.platforms)
             contract_to_symbol[contract] = asset.id;
 
+    std::map<std::string, chain::callback> wallet_balances;
+    std::map<std::string, chain::callback> wallet_assets;
+
+    wallet_balances["cardano"] = chain::cardano::balance;
+    wallet_assets["cardano"] = chain::cardano::assets;
+
     for (auto &&[coin, address] : wallets) {
-        request_wallet_ballances.emplace_back(schedule(std::function{[coin, address, &config]() -> std::optional<std::pair<std::string, double>> {
-            if (coin != "cardano") return {};
-            spdlog::info("blockfrost::v0: requesting wallet balance {}", address);
-            const auto balance = blockfrost::v0::accounts_balance(address, config.blockfrost);
+        if (wallet_balances.contains(coin))
+            balance_reqs.emplace_back(wallet_balances.at(coin)(address, config));
 
-            if (!balance) {
-                spdlog::error("blockfrost::v0: unable to request {}", address);
-                return std::make_pair(coin, 0.0);
-            }
-
-            spdlog::info("blockfrost::v0: {}, balance {:.2f}", address, balance.value());
-            return std::make_pair(coin, balance.value());
-        }}));
-
-        request_wallet_assets.emplace_back(schedule(std::function{[address, coin, &config]() -> std::vector<blockfrost::v0::asset> {
-            if (coin != "cardano") return {};
-            spdlog::info("blockfrost::v0: requesting wallet assets {}", address);
-            auto ret = blockfrost::v0::accounts_assets_balance(address, config.blockfrost);
-            spdlog::info("blockfrost::v0: found {} assets", ret.size());
-            return ret;
-        }}));
+        if (wallet_assets.contains(coin))
+            assets_reqs.emplace_back(wallet_assets.at(coin)(address, config));
     }
 
-    for (auto &&request : request_wallet_ballances) {
+    for (auto &&request : balance_reqs) {
         const auto value = request.get();
-        if (value)
-            input.emplace_back(std::move(value.value()));
+        if (!value.empty())
+            std::move(value.begin(), value.end(), std::back_inserter(input));
     }
 
-    for (auto &&request : request_wallet_assets) {
+    for (auto &&request : assets_reqs) {
         const auto assets = request.get();
-        for (auto &&asset : assets) {
-            if (!contract_to_symbol.contains(asset.unit)) continue;
-            const auto &info = contract_to_symbol[asset.unit];
+        for (auto &&[coin, quantity] : assets) {
+            if (!contract_to_symbol.contains(coin)) continue;
+            const auto &info = contract_to_symbol[coin];
             spdlog::info("found coin asset {}", info);
             // input.emplace_back(std::make_pair(info, asset.quantity));
         }
