@@ -1,11 +1,14 @@
 #include <CLI/CLI.hpp>
 
 #include <algorithm>
+#include <expected>
 #include <functional>
 #include <iterator>
 #include <map>
 #include <optional>
 #include <string>
+#include <thread>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -26,6 +29,7 @@
 #include "cli/cli.hpp"
 #include "helpers/colors.hpp"
 #include "helpers/threading.hpp"
+#include "libcoingecko/v3/options.hpp"
 
 using namespace csv;
 
@@ -88,6 +92,17 @@ auto price(double value, const configuration &cfg) noexcept -> std::string {
 
 } // namespace format
 
+template <typename Callable, typename... Ts>
+auto repeat(Callable &callable, Ts &&...values) {
+    for (;;) {
+        auto ret = callable(std::forward<Ts>(values)...);
+        if (ret)
+            return ret;
+        spdlog::info("retry, waiting 1min for coingecko");
+        std::this_thread::sleep_for(1min);
+    }
+}
+
 auto main(int argc, char **argv) -> int {
     auto expected_config = cli::parse(argc, argv);
     if (!expected_config)
@@ -104,7 +119,9 @@ auto main(int argc, char **argv) -> int {
     std::vector<task<std::vector<std::pair<std::string, double>>>> assets_reqs;
     std::map<std::string, std::string> contract_to_symbol;
 
-    const auto assets = coingecko::v3::coins::list::query({}, config.coingecko);
+    using namespace coingecko::v3;
+
+    const auto assets = repeat(coins::list::query, coins::list::settings{}, config.coingecko);
     for (auto &&asset : assets.value())
         for (auto &&[_, contract] : asset.platforms)
             contract_to_symbol[contract] = asset.id;
@@ -141,15 +158,17 @@ auto main(int argc, char **argv) -> int {
 
     auto request_price = schedule(std::function{[input, &config]() {
         spdlog::info("coingecko::v3: requesting prices");
-        return coingecko::v3::simple::price::query({
-            .ids = input | ranges::views::transform([](auto &&p) { return p.first; }) | ranges::to<std::vector<std::string>>(),
-            .vs_currencies = {"usd", "btc", "pln", "sats", "eur", config.preferred_currency},
-        });
+        return repeat(simple::price::query, //
+            simple::price::parameters{
+                .ids = input | ranges::views::transform([](auto &&p) { return p.first; }) | ranges::to<std::vector<std::string>>(),
+                .vs_currencies = {"usd", "btc", "pln", "sats", "eur", config.preferred_currency},
+            },
+            config.coingecko);
     }});
 
-    auto request_global_stats = schedule(std::function{[input]() {
+    auto request_global_stats = schedule(std::function{[input, &config]() {
         spdlog::info("coingecko::v3: requesting global market data");
-        return coingecko::v3::global::list();
+        return repeat(global::list, config.coingecko);
     }});
 
     if (!request_price.get() || !request_global_stats.get()) {
