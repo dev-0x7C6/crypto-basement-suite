@@ -4,7 +4,6 @@
 #include <functional>
 #include <iterator>
 #include <map>
-#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -12,8 +11,6 @@
 
 #include <csv.hpp>
 #include <types.hpp>
-
-#include <CLI/CLI.hpp>
 
 #include <libblockfrost/public/includes/libblockfrost/v0/balance.hpp>
 #include <libcoingecko/v3/coins/list.hpp>
@@ -138,7 +135,7 @@ auto main(int argc, char **argv) -> int {
             if (!contract_to_symbol.contains(coin)) continue;
             const auto &info = contract_to_symbol[coin];
             spdlog::info("found coin asset {}", info);
-            // input.emplace_back(std::make_pair(info, asset.quantity));
+            // input.emplace_back(std::make_pair(info, quantity));
         }
     }
 
