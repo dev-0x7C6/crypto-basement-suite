@@ -10,7 +10,7 @@ enum class error {
     unauthorized = 401,
     forbidden = 403,
     not_found = 404,
-    too_many_requests = 429,
+    api_rate_limit = 429,
     generic_error = 1000,
     invalid_parameter = 1001,
     required_parameter_missing = 1002,

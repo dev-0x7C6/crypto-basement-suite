@@ -4,6 +4,7 @@
 #include <curlpp/Exception.hpp>
 #include <curlpp/Options.hpp>
 #include <curlpp/cURLpp.hpp>
+#include <expected>
 #include <nlohmann/json.hpp>
 
 #include <format>
@@ -64,7 +65,7 @@ auto request(const std::string &query, const options &opts) -> std::expected<nlo
     auto &&json = response.value();
 
     if (json.contains("status") && json["status"].contains("error_code"))
-        return {};
+        return std::unexpected(static_cast<error>(json["status"].value("error_code", 0)));
 
     return json;
 }
