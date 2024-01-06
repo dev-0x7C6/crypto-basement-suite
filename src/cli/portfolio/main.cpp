@@ -8,7 +8,6 @@
 #include <optional>
 #include <string>
 #include <thread>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -29,17 +28,22 @@
 #include "cli/cli.hpp"
 #include "helpers/colors.hpp"
 #include "helpers/threading.hpp"
-#include "libcoingecko/v3/options.hpp"
 
 using namespace csv;
 
 using namespace ranges;
 using namespace std::chrono_literals;
 
+static auto logger = []() {
+    static auto console = spdlog::stdout_color_mt("portfolio");
+    console->set_pattern("%v");
+    return spdlog::get("portfolio");
+}();
+
 auto read_input_files(const std::vector<std::string> &files) -> std::vector<std::pair<std::string, double>> {
     std::vector<std::pair<std::string, double>> ret;
     for (auto &&file : files) {
-        spdlog::info("reading data from {}", file);
+        logger->info("reading data from {}", file);
         CSVReader reader(file);
         for (auto &&row : reader)
             ret.emplace_back(std::make_pair(row[0].get<std::string>(), row[1].get<double>()));
@@ -55,7 +59,7 @@ auto read_input_files(const std::vector<std::string> &files) -> std::vector<std:
 auto read_wallet_files(const std::vector<std::string> &files) -> std::vector<std::pair<std::string, std::string>> {
     std::vector<std::pair<std::string, std::string>> ret;
     for (auto &&file : files) {
-        spdlog::info("reading data from {}", file);
+        logger->info("reading data from {}", file);
         CSVReader reader(file);
         for (auto &&row : reader)
             ret.emplace_back(std::make_pair(row[0].get<std::string>(), row[1].get<std::string>()));
@@ -98,7 +102,7 @@ auto repeat(Callable &callable, Ts &&...values) {
         auto ret = callable(std::forward<Ts>(values)...);
         if (ret)
             return ret;
-        spdlog::info("retry, waiting 1min for coingecko");
+        logger->info("retry, waiting 1min for coingecko");
         std::this_thread::sleep_for(1min);
     }
 }
@@ -107,8 +111,6 @@ auto main(int argc, char **argv) -> int {
     auto expected_config = cli::parse(argc, argv);
     if (!expected_config)
         return expected_config.error();
-
-    spdlog::set_pattern("%v");
 
     const auto config = std::move(expected_config.value());
 
@@ -151,13 +153,13 @@ auto main(int argc, char **argv) -> int {
         for (auto &&[coin, quantity] : assets) {
             if (!contract_to_symbol.contains(coin)) continue;
             const auto &info = contract_to_symbol[coin];
-            spdlog::info("found coin asset {}", info);
+            logger->info("found coin asset {}", info);
             // input.emplace_back(std::make_pair(info, quantity));
         }
     }
 
     auto request_price = schedule(std::function{[input, &config]() {
-        spdlog::info("coingecko::v3: requesting prices");
+        logger->info("coingecko::v3: requesting prices");
         return repeat(simple::price::query, //
             simple::price::parameters{
                 .ids = input | ranges::views::transform([](auto &&p) { return p.first; }) | ranges::to<std::vector<std::string>>(),
@@ -167,12 +169,12 @@ auto main(int argc, char **argv) -> int {
     }});
 
     auto request_global_stats = schedule(std::function{[input, &config]() {
-        spdlog::info("coingecko::v3: requesting global market data");
+        logger->info("coingecko::v3: requesting global market data");
         return repeat(global::list, config.coingecko);
     }});
 
     if (!request_price.get() || !request_global_stats.get()) {
-        spdlog::error("invalid coingecko data");
+        logger->error("invalid coingecko data");
         return 1;
     }
 
@@ -192,9 +194,9 @@ auto main(int argc, char **argv) -> int {
         const auto &prices = summary.at(asset);
 
         if (config.hide.balances)
-            spdlog::info("\n+ {} [---]", asset);
+            logger->info("\n+ {} [---]", asset);
         else
-            spdlog::info("\n+ {} [{:f}]", asset, ballance);
+            logger->info("\n+ {} [{:f}]", asset, ballance);
 
         for (auto &&[currency, valuation] : prices) {
             const auto value = ballance * valuation.value;
@@ -205,7 +207,7 @@ auto main(int argc, char **argv) -> int {
             _24h_max = std::max(_24h_max, _24h);
             const auto formatted_price = format::price(value, config);
 
-            spdlog::info(" -> {} {}", formatted_price, currency);
+            logger->info(" -> {} {}", formatted_price, currency);
         }
     }
 
@@ -237,19 +239,19 @@ auto main(int argc, char **argv) -> int {
         return ansi_colorize(std::format("{:+.2f}%", value), x.r, x.g, x.b);
     };
 
-    spdlog::info("\n+ 24h change (sorted):");
+    logger->info("\n+ 24h change (sorted):");
     for (auto &&share : shares) {
         const auto &change = _24h_change.at(share.asset);
         const auto p = colorized_percent(change, _24h_min, _24h_max);
         const auto x = summary.at(share.asset).at(config.preferred_currency).value;
-        spdlog::info(" {:>20}: {} [{:.2f} {}]", share.asset, p, x, config.preferred_currency);
+        logger->info(" {:>20}: {} [{:.2f} {}]", share.asset, p, x, config.preferred_currency);
     }
 
     ranges::sort(shares, [](auto &&l, auto &&r) {
         return l.share > r.share;
     });
 
-    spdlog::info("\n+ shares");
+    logger->info("\n+ shares");
     for (auto &&share : shares) {
         const auto &prices = summary.at(share.asset);
         const auto &change = _24h_change.at(share.asset);
@@ -257,18 +259,19 @@ auto main(int argc, char **argv) -> int {
         const auto p = colorized_percent(change, _24h_min, _24h_max);
         const auto formatted_share = format::share(share.share, config);
         const auto formatted_price = format::price(value, config);
-        spdlog::info(" {:>20}: {}, {} {}, 24h: {}", share.asset, formatted_share, formatted_price, config.preferred_currency,
+        logger->info(" {:>20}: {}, {} {}, 24h: {}", share.asset, formatted_share, formatted_price, config.preferred_currency,
             p);
     }
 
-    spdlog::info("\n+ global market");
+    logger->info("\n+ global market");
     const auto total_market_cap = fmt::format("{:.3f} T", global_market.total_market_cap.at("usd") / 1000 / 1000 / 1000 / 1000);
     const auto total_market_cap_change = colorized_percent(global_market.market_cap_change_percentage_24h_usd, -5, 5);
-    spdlog::info(" -> {} {}", total_market_cap, total_market_cap_change);
+    logger->info(" -> {} {}", total_market_cap, total_market_cap_change);
 
-    spdlog::info("\n+ total");
+    logger->info("\n+ total");
     for (auto &&[currency, valuation] : total)
-        spdlog::info(" -> {} {}", format::price(valuation, config), currency);
+        logger->info(" -> {} {}", format::price(valuation, config), currency);
 
+    spdlog::shutdown();
     return 0;
 }
