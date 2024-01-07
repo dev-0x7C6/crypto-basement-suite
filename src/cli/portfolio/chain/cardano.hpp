@@ -1,11 +1,13 @@
 #pragma once
 
+#include <memory>
 #include <range/v3/to_container.hpp>
 #include <range/v3/view/transform.hpp>
 
 #include <libblockfrost/public/includes/libblockfrost/v0/balance.hpp>
 
 #include <spdlog/async_logger.h>
+#include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
@@ -14,14 +16,8 @@
 
 namespace chain::cardano {
 
-static auto logger = [](){
-    static auto console = spdlog::stdout_color_mt("chain::cardano::logger");
-    console->set_pattern("%v");
-    return spdlog::get("chain::cardano::logger");
-}();
-
-auto balance(const std::string &addr, const configuration &config) -> task<std::vector<std::pair<std::string, double>>> {
-    return schedule(std::function{[addr, opts{config.blockfrost}]() -> std::vector<std::pair<std::string, double>> {
+auto balance(const std::shared_ptr<spdlog::logger> &logger, const std::string &addr, const configuration &config) -> task<std::vector<std::pair<std::string, double>>> {
+    return schedule(std::function{[logger, addr, opts{config.blockfrost}]() -> std::vector<std::pair<std::string, double>> {
         logger->info("blockfrost::v0: {}: requesting wallet balance", addr);
         const auto balance = blockfrost::v0::accounts_balance(addr, opts);
 
@@ -35,8 +31,8 @@ auto balance(const std::string &addr, const configuration &config) -> task<std::
     }});
 };
 
-auto assets(const std::string &addr, const configuration &config) -> task<std::vector<std::pair<std::string, double>>> {
-    return schedule(std::function{[addr, opts{config.blockfrost}]() -> std::vector<std::pair<std::string, double>> {
+auto assets(const std::shared_ptr<spdlog::logger> &logger, const std::string &addr, const configuration &config) -> task<std::vector<std::pair<std::string, double>>> {
+    return schedule(std::function{[logger, addr, opts{config.blockfrost}]() -> std::vector<std::pair<std::string, double>> {
         logger->info("blockfrost::v0: {}: requesting wallet assets", addr);
         const auto ret = blockfrost::v0::accounts_assets_balance(addr, opts);
         logger->info("blockfrost::v0: {}: found {} assets", addr, ret.size());

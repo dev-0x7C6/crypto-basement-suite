@@ -5,7 +5,9 @@
 #include <functional>
 #include <iterator>
 #include <map>
+#include <memory>
 #include <optional>
+#include <spdlog/logger.h>
 #include <string>
 #include <thread>
 #include <utility>
@@ -37,12 +39,6 @@ using namespace coingecko::v3;
 using namespace std;
 using namespace std::chrono_literals;
 
-static auto logger = []() {
-    auto console = spdlog::stdout_color_mt("portfolio");
-    console->set_pattern("%v");
-    return spdlog::get("portfolio");
-}();
-
 struct share {
     string asset;
     double share{};
@@ -55,7 +51,7 @@ auto as_btc(const map<string, struct simple::price::price> &prices) -> optional<
 }
 
 template <typename Callable, typename... Ts>
-auto repeat(Callable &callable, Ts &&...values) {
+auto repeat(const shared_ptr<spdlog::logger> &logger, Callable &callable, Ts &&...values) {
     for (;;) {
         auto ret = callable(std::forward<Ts>(values)...);
         if (ret)
@@ -92,6 +88,9 @@ auto calculate(const portfolio &portfolio,
 } // namespace shares
 
 auto main(int argc, char **argv) -> int {
+    auto logger = spdlog::stdout_color_mt("portfolio");
+    logger->set_pattern("%v");
+
     auto expected_config = cli::parse(argc, argv);
     if (!expected_config)
         return expected_config.error();
@@ -107,7 +106,7 @@ auto main(int argc, char **argv) -> int {
 
     using namespace coingecko::v3;
 
-    const auto assets = repeat(coins::list::query, coins::list::settings{}, config.coingecko);
+    const auto assets = repeat(logger, coins::list::query, coins::list::settings{}, config.coingecko);
     for (auto &&asset : assets.value())
         for (auto &&[_, contract] : asset.platforms)
             contract_to_symbol[contract] = asset.id;
@@ -120,10 +119,10 @@ auto main(int argc, char **argv) -> int {
 
     for (auto &&[coin, address] : wallets) {
         if (wallet_balances.contains(coin))
-            balance_reqs.emplace_back(wallet_balances.at(coin)(address, config));
+            balance_reqs.emplace_back(wallet_balances.at(coin)(logger, address, config));
 
         if (wallet_assets.contains(coin))
-            assets_reqs.emplace_back(wallet_assets.at(coin)(address, config));
+            assets_reqs.emplace_back(wallet_assets.at(coin)(logger, address, config));
     }
 
     for (auto &&request : balance_reqs) {
@@ -142,9 +141,9 @@ auto main(int argc, char **argv) -> int {
         }
     }
 
-    auto request_price = schedule(function{[balances, &config]() {
+    auto request_price = schedule(function{[logger, balances, &config]() {
         logger->info("coingecko::v3: requesting prices");
-        return repeat(simple::price::query, //
+        return repeat(logger, simple::price::query, //
             simple::price::parameters{
                 .ids = balances | ::ranges::views::transform([](auto &&p) { return p.first; }) | ::ranges::to<vector<string>>(),
                 .vs_currencies = {"usd", "btc", "pln", "sats", "eur", config.preferred_currency},
@@ -152,9 +151,9 @@ auto main(int argc, char **argv) -> int {
             config.coingecko);
     }});
 
-    auto request_global_stats = schedule(function{[&config]() {
+    auto request_global_stats = schedule(function{[logger, &config]() {
         logger->info("coingecko::v3: requesting global market data");
-        return repeat(global::list, config.coingecko);
+        return repeat(logger, global::list, config.coingecko);
     }});
 
     if (!request_price.get() || !request_global_stats.get()) {
@@ -246,8 +245,6 @@ auto main(int argc, char **argv) -> int {
     logger->info("\n+ total");
     for (auto &&[currency, valuation] : total)
         logger->info(" -> {} {}", format::price(valuation, config), currency);
-
-    spdlog::shutdown();
 
     return 0;
 }
