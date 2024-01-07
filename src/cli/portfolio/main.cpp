@@ -65,6 +65,32 @@ auto repeat(Callable &callable, Ts &&...values) {
     }
 }
 
+using portfolio = map<string, double>;
+
+namespace shares {
+auto calculate(const portfolio &portfolio,
+    function<optional<double>(const string &asset)> &&query_price,
+    double total) -> vector<share> {
+    vector<share> shares;
+
+    for (auto &&[asset, balance] : portfolio) {
+        const auto price = query_price(asset);
+
+        if (!price) continue;
+
+        const auto value = balance * price.value_or(0.0);
+
+        shares.push_back({
+            .asset = asset,
+            .share = value / total * 100.0,
+            .quantity = balance,
+        });
+    }
+
+    return shares;
+}
+} // namespace shares
+
 auto main(int argc, char **argv) -> int {
     auto expected_config = cli::parse(argc, argv);
     if (!expected_config)
@@ -139,7 +165,7 @@ auto main(int argc, char **argv) -> int {
     const auto summary = request_price.get().value();
     const auto global_market = request_global_stats.get().value();
 
-    map<string, double> portfolio;
+    portfolio portfolio;
     for (auto [symbol, balance] : balances)
         portfolio[symbol] += balance;
 
@@ -169,21 +195,15 @@ auto main(int argc, char **argv) -> int {
         }
     }
 
-    vector<share> shares;
-    const auto total_in_btc = total["btc"];
+    auto shares = shares::calculate(
+        portfolio, [&](const string &asset) -> optional<double> {
+            try {
+                return summary.at(asset).at("btc").value;
+            } catch (...) {}
 
-    for (auto &&[asset, ballance] : portfolio) {
-        if (!summary.contains(asset)) continue;
-
-        const auto &prices = summary.at(asset);
-        const auto value = ballance * as_btc(prices).value_or(0.0);
-
-        shares.push_back({
-            .asset = asset,
-            .share = value / total_in_btc * 100.0,
-            .quantity = ballance,
-        });
-    }
+            return {};
+        },
+        total["btc"]);
 
     ::ranges::sort(shares, [&](auto &&l, auto &&r) {
         return _24h_change.at(l.asset) > _24h_change.at(r.asset);
