@@ -33,8 +33,8 @@
 #include "readers/wallets.hpp"
 
 using namespace csv;
-
-using namespace ranges;
+using namespace coingecko::v3;
+using namespace std;
 using namespace std::chrono_literals;
 
 static auto logger = []() {
@@ -44,12 +44,12 @@ static auto logger = []() {
 }();
 
 struct share {
-    std::string asset;
+    string asset;
     double share{};
     double quantity{};
 };
 
-auto as_btc(const std::map<std::string, struct coingecko::v3::simple::price::price> &prices) -> std::optional<double> {
+auto as_btc(const map<string, struct simple::price::price> &prices) -> optional<double> {
     if (!prices.contains("btc")) return {};
     return prices.at("btc").value;
 }
@@ -61,7 +61,7 @@ auto repeat(Callable &callable, Ts &&...values) {
         if (ret)
             return ret;
         logger->info("retry, waiting 1min for coingecko");
-        std::this_thread::sleep_for(1min);
+        this_thread::sleep_for(1min);
     }
 }
 
@@ -70,16 +70,14 @@ auto main(int argc, char **argv) -> int {
     if (!expected_config)
         return expected_config.error();
 
-    using namespace coingecko::v3;
-
     const auto config = std::move(expected_config.value());
 
     auto balances = readers::balances_from_csv(config.balances);
     auto wallets = readers::wallets_from_csv(config.track_wallets);
 
-    std::vector<task<std::vector<std::pair<std::string, double>>>> balance_reqs;
-    std::vector<task<std::vector<std::pair<std::string, double>>>> assets_reqs;
-    std::map<std::string, std::string> contract_to_symbol;
+    vector<task<vector<pair<string, double>>>> balance_reqs;
+    vector<task<vector<pair<string, double>>>> assets_reqs;
+    map<string, string> contract_to_symbol;
 
     using namespace coingecko::v3;
 
@@ -88,8 +86,8 @@ auto main(int argc, char **argv) -> int {
         for (auto &&[_, contract] : asset.platforms)
             contract_to_symbol[contract] = asset.id;
 
-    std::map<std::string, chain::callback> wallet_balances;
-    std::map<std::string, chain::callback> wallet_assets;
+    map<string, chain::callback> wallet_balances;
+    map<string, chain::callback> wallet_assets;
 
     wallet_balances["cardano"] = chain::cardano::balance;
     wallet_assets["cardano"] = chain::cardano::assets;
@@ -118,17 +116,17 @@ auto main(int argc, char **argv) -> int {
         }
     }
 
-    auto request_price = schedule(std::function{[balances, &config]() {
+    auto request_price = schedule(function{[balances, &config]() {
         logger->info("coingecko::v3: requesting prices");
         return repeat(simple::price::query, //
             simple::price::parameters{
-                .ids = balances | ::ranges::views::transform([](auto &&p) { return p.first; }) | ::ranges::to<std::vector<std::string>>(),
+                .ids = balances | ::ranges::views::transform([](auto &&p) { return p.first; }) | ::ranges::to<vector<string>>(),
                 .vs_currencies = {"usd", "btc", "pln", "sats", "eur", config.preferred_currency},
             },
             config.coingecko);
     }});
 
-    auto request_global_stats = schedule(std::function{[&config]() {
+    auto request_global_stats = schedule(function{[&config]() {
         logger->info("coingecko::v3: requesting global market data");
         return repeat(global::list, config.coingecko);
     }});
@@ -141,12 +139,12 @@ auto main(int argc, char **argv) -> int {
     const auto summary = request_price.get().value();
     const auto global_market = request_global_stats.get().value();
 
-    std::map<std::string, double> portfolio;
+    map<string, double> portfolio;
     for (auto [symbol, balance] : balances)
         portfolio[symbol] += balance;
 
-    std::map<std::string, double> total;
-    std::map<std::string, double> _24h_change;
+    map<string, double> total;
+    map<string, double> _24h_change;
     double _24h_min{};
     double _24h_max{};
 
@@ -171,7 +169,7 @@ auto main(int argc, char **argv) -> int {
         }
     }
 
-    std::vector<share> shares;
+    vector<share> shares;
     const auto total_in_btc = total["btc"];
 
     for (auto &&[asset, ballance] : portfolio) {
