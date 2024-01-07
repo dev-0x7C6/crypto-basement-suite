@@ -171,8 +171,6 @@ auto main(int argc, char **argv) -> int {
 
     map<string, double> total;
     map<string, double> _24h_change;
-    double _24h_min{};
-    double _24h_max{};
 
     for (auto &&[asset, ballance] : portfolio) {
         const auto &prices = summary.at(asset);
@@ -187,21 +185,23 @@ auto main(int argc, char **argv) -> int {
             const auto _24h = valuation.change_24h;
             total[currency] += value;
             _24h_change[asset] = _24h;
-            _24h_min = std::min(_24h_min, _24h);
-            _24h_max = std::max(_24h_max, _24h);
             const auto formatted_price = format::price(value, config);
 
             logger->info(" -> {} {}", formatted_price, currency);
         }
     }
 
+    auto price = [&summary](const string &asset, const string &currency) -> optional<double> {
+        try {
+            return summary.at(asset).at(currency).value;
+        } catch (...) {}
+
+        return {};
+    };
+
     auto shares = shares::calculate(
         portfolio, [&](const string &asset) -> optional<double> {
-            try {
-                return summary.at(asset).at("btc").value;
-            } catch (...) {}
-
-            return {};
+            return price(asset, "btc");
         },
         total["btc"]);
 
@@ -211,10 +211,13 @@ auto main(int argc, char **argv) -> int {
 
     logger->info("\n+ 24h change (sorted):");
     for (auto &&share : shares) {
-        const auto &change = _24h_change.at(share.asset);
-        const auto p = format::percent(change, _24h_min, _24h_max);
-        const auto x = summary.at(share.asset).at(config.preferred_currency).value;
-        logger->info(" {:>20}: {} [{:.2f} {}]", share.asset, p, x, config.preferred_currency);
+        const auto percent = format::percent(_24h_change.at(share.asset));
+        const auto value = price(share.asset, config.preferred_currency).value_or(0.0);
+        logger->info(" {:>20}: {} [{:.2f} {}]",
+            share.asset,
+            percent,
+            value,
+            config.preferred_currency);
     }
 
     ::ranges::sort(shares, [](auto &&l, auto &&r) {
@@ -222,15 +225,17 @@ auto main(int argc, char **argv) -> int {
     });
 
     logger->info("\n+ shares");
-    for (auto &&share : shares) {
-        const auto &prices = summary.at(share.asset);
-        const auto &change = _24h_change.at(share.asset);
-        const auto value = prices.at(config.preferred_currency).value * share.quantity;
-        const auto p = format::percent(change, _24h_min, _24h_max);
-        const auto formatted_share = format::share(share.share, config);
-        const auto formatted_price = format::price(value, config);
-        logger->info(" {:>20}: {}, {} {}, 24h: {}", share.asset, formatted_share, formatted_price, config.preferred_currency,
-            p);
+    for (auto &&s : shares) {
+        const auto value = price(s.asset, config.preferred_currency).value_or(0.0) * s.quantity;
+        const auto percent = format::percent(_24h_change.at(s.asset));
+        const auto share = format::share(s.share, config);
+        const auto price = format::price(value, config);
+        logger->info(" {:>20}: {}, {} {}, 24h: {}",
+            s.asset,
+            share,
+            price,
+            config.preferred_currency,
+            percent);
     }
 
     logger->info("\n+ global market");
