@@ -11,7 +11,7 @@ auto parse(int argc, char **argv) -> std::expected<configuration, int> {
 
     configuration config;
 
-    app.add_option("-i,--input", config.ballances, "csv format <coin, quantity>")->required()->allow_extra_args()->check(CLI::ExistingFile);
+    app.add_option("-i,--input", config.balances, "csv format <coin, quantity>")->required()->allow_extra_args()->check(CLI::ExistingFile);
     app.add_option("-t,--track-wallets", config.track_wallets, "csv format <coin, address>");
     app.add_option("-p,--preferred-currency", config.preferred_currency, "show value in currency");
     app.add_option("--blockfrost-api-key", config.blockfrost.key, "https://blockfrost.io/");

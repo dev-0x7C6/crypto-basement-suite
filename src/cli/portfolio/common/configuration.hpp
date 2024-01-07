@@ -10,7 +10,7 @@ struct configuration {
     blockfrost::v0::options blockfrost;
     coingecko::v3::options coingecko;
 
-    std::vector<std::string> ballances;
+    std::vector<std::string> balances;
     std::vector<std::string> track_wallets;
     std::string preferred_currency{"usd"};
 

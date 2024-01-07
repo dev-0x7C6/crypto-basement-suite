@@ -26,8 +26,11 @@
 
 #include "chain/cardano.hpp"
 #include "cli/cli.hpp"
-#include "helpers/colors.hpp"
+#include "helpers/formatter.hpp"
 #include "helpers/threading.hpp"
+
+#include "readers/balances.hpp"
+#include "readers/wallets.hpp"
 
 using namespace csv;
 
@@ -35,37 +38,10 @@ using namespace ranges;
 using namespace std::chrono_literals;
 
 static auto logger = []() {
-    static auto console = spdlog::stdout_color_mt("portfolio");
+    auto console = spdlog::stdout_color_mt("portfolio");
     console->set_pattern("%v");
     return spdlog::get("portfolio");
 }();
-
-auto read_input_files(const std::vector<std::string> &files) -> std::vector<std::pair<std::string, double>> {
-    std::vector<std::pair<std::string, double>> ret;
-    for (auto &&file : files) {
-        logger->info("reading data from {}", file);
-        CSVReader reader(file);
-        for (auto &&row : reader)
-            ret.emplace_back(std::make_pair(row[0].get<std::string>(), row[1].get<double>()));
-    }
-
-    ranges::sort(ret, [](auto &&l, auto &&r) {
-        return l.first < r.first;
-    });
-
-    return ret;
-}
-
-auto read_wallet_files(const std::vector<std::string> &files) -> std::vector<std::pair<std::string, std::string>> {
-    std::vector<std::pair<std::string, std::string>> ret;
-    for (auto &&file : files) {
-        logger->info("reading data from {}", file);
-        CSVReader reader(file);
-        for (auto &&row : reader)
-            ret.emplace_back(std::make_pair(row[0].get<std::string>(), row[1].get<std::string>()));
-    }
-    return ret;
-}
 
 struct share {
     std::string asset;
@@ -77,24 +53,6 @@ auto as_btc(const std::map<std::string, struct coingecko::v3::simple::price::pri
     if (!prices.contains("btc")) return {};
     return prices.at("btc").value;
 }
-
-namespace format {
-
-auto share(double value, const configuration &cfg) noexcept -> std::string {
-    if (cfg.hide.balances)
-        return "---%";
-
-    return fmt::format("{:.2f}%", value);
-}
-
-auto price(double value, const configuration &cfg) noexcept -> std::string {
-    if (cfg.hide.balances)
-        return "---";
-
-    return fmt::format("{:.2f}", value);
-}
-
-} // namespace format
 
 template <typename Callable, typename... Ts>
 auto repeat(Callable &callable, Ts &&...values) {
@@ -112,10 +70,12 @@ auto main(int argc, char **argv) -> int {
     if (!expected_config)
         return expected_config.error();
 
+    using namespace coingecko::v3;
+
     const auto config = std::move(expected_config.value());
 
-    auto input = read_input_files(config.ballances);
-    auto wallets = read_wallet_files(config.track_wallets);
+    auto balances = readers::balances_from_csv(config.balances);
+    auto wallets = readers::wallets_from_csv(config.track_wallets);
 
     std::vector<task<std::vector<std::pair<std::string, double>>>> balance_reqs;
     std::vector<task<std::vector<std::pair<std::string, double>>>> assets_reqs;
@@ -145,7 +105,7 @@ auto main(int argc, char **argv) -> int {
     for (auto &&request : balance_reqs) {
         const auto value = request.get();
         if (!value.empty())
-            std::move(value.begin(), value.end(), std::back_inserter(input));
+            std::move(value.begin(), value.end(), std::back_inserter(balances));
     }
 
     for (auto &&request : assets_reqs) {
@@ -158,17 +118,17 @@ auto main(int argc, char **argv) -> int {
         }
     }
 
-    auto request_price = schedule(std::function{[input, &config]() {
+    auto request_price = schedule(std::function{[balances, &config]() {
         logger->info("coingecko::v3: requesting prices");
         return repeat(simple::price::query, //
             simple::price::parameters{
-                .ids = input | ranges::views::transform([](auto &&p) { return p.first; }) | ranges::to<std::vector<std::string>>(),
+                .ids = balances | ::ranges::views::transform([](auto &&p) { return p.first; }) | ::ranges::to<std::vector<std::string>>(),
                 .vs_currencies = {"usd", "btc", "pln", "sats", "eur", config.preferred_currency},
             },
             config.coingecko);
     }});
 
-    auto request_global_stats = schedule(std::function{[input, &config]() {
+    auto request_global_stats = schedule(std::function{[&config]() {
         logger->info("coingecko::v3: requesting global market data");
         return repeat(global::list, config.coingecko);
     }});
@@ -182,7 +142,7 @@ auto main(int argc, char **argv) -> int {
     const auto global_market = request_global_stats.get().value();
 
     std::map<std::string, double> portfolio;
-    for (auto [symbol, balance] : input)
+    for (auto [symbol, balance] : balances)
         portfolio[symbol] += balance;
 
     std::map<std::string, double> total;
@@ -227,27 +187,19 @@ auto main(int argc, char **argv) -> int {
         });
     }
 
-    ranges::sort(shares, [&](auto &&l, auto &&r) {
+    ::ranges::sort(shares, [&](auto &&l, auto &&r) {
         return _24h_change.at(l.asset) > _24h_change.at(r.asset);
     });
-
-    auto colorized_percent = [&](double value, double min, double max) {
-        constexpr auto _max = +10.0;
-        constexpr auto _min = -10.0;
-        const auto c = std::clamp(value, _min, _max);
-        auto x = hsl_to_rgb({120.0 * (c - _min) / (_max - _min), 1.0, 1.0});
-        return ansi_colorize(std::format("{:+.2f}%", value), x.r, x.g, x.b);
-    };
 
     logger->info("\n+ 24h change (sorted):");
     for (auto &&share : shares) {
         const auto &change = _24h_change.at(share.asset);
-        const auto p = colorized_percent(change, _24h_min, _24h_max);
+        const auto p = format::percent(change, _24h_min, _24h_max);
         const auto x = summary.at(share.asset).at(config.preferred_currency).value;
         logger->info(" {:>20}: {} [{:.2f} {}]", share.asset, p, x, config.preferred_currency);
     }
 
-    ranges::sort(shares, [](auto &&l, auto &&r) {
+    ::ranges::sort(shares, [](auto &&l, auto &&r) {
         return l.share > r.share;
     });
 
@@ -256,7 +208,7 @@ auto main(int argc, char **argv) -> int {
         const auto &prices = summary.at(share.asset);
         const auto &change = _24h_change.at(share.asset);
         const auto value = prices.at(config.preferred_currency).value * share.quantity;
-        const auto p = colorized_percent(change, _24h_min, _24h_max);
+        const auto p = format::percent(change, _24h_min, _24h_max);
         const auto formatted_share = format::share(share.share, config);
         const auto formatted_price = format::price(value, config);
         logger->info(" {:>20}: {}, {} {}, 24h: {}", share.asset, formatted_share, formatted_price, config.preferred_currency,
@@ -265,7 +217,7 @@ auto main(int argc, char **argv) -> int {
 
     logger->info("\n+ global market");
     const auto total_market_cap = fmt::format("{:.3f} T", global_market.total_market_cap.at("usd") / 1000 / 1000 / 1000 / 1000);
-    const auto total_market_cap_change = colorized_percent(global_market.market_cap_change_percentage_24h_usd, -5, 5);
+    const auto total_market_cap_change = format::percent(global_market.market_cap_change_percentage_24h_usd, -5, 5);
     logger->info(" -> {} {}", total_market_cap, total_market_cap_change);
 
     logger->info("\n+ total");
@@ -273,5 +225,6 @@ auto main(int argc, char **argv) -> int {
         logger->info(" -> {} {}", format::price(valuation, config), currency);
 
     spdlog::shutdown();
+
     return 0;
 }
