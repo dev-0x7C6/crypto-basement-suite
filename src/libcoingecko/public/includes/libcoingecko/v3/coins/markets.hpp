@@ -2,8 +2,8 @@
 
 #include <libcoingecko/v3/options.hpp>
 
+#include <cstdint>
 #include <string>
-#include <map>
 #include <vector>
 
 namespace coingecko::v3::coins::markets {

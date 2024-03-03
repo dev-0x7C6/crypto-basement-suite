@@ -18,8 +18,8 @@ target_link_libraries(libblockfrost-v0 PRIVATE
     range-v3::range-v3
     fmt::fmt
     nlohmann_json::nlohmann_json
-    curlpp
-    curl
+    PkgConfig::Curl++
+    CURL::libcurl
 )
 
 add_subdirectory(examples)

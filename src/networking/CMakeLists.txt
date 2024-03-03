@@ -8,6 +8,6 @@ target_include_directories(cbs-networking PUBLIC
 )
 
 target_link_libraries(cbs-networking PUBLIC
-    curlpp
-    curl
+    PkgConfig::Curl++
+    CURL::libcurl
 )

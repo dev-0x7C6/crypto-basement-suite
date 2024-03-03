@@ -17,8 +17,10 @@ find_package(benchmark REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(range-v3 REQUIRED)
 find_package(spdlog REQUIRED)
-
+find_package(CURL REQUIRED)
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(curlpp REQUIRED curlpp)
+
+pkg_check_modules(Curl++ REQUIRED IMPORTED_TARGET curlpp)
+
 
 add_subdirectory("src")
