@@ -22,4 +22,7 @@ target_link_libraries(libblockfrost-v0 PRIVATE
     CURL::libcurl
 )
 
+set_target_properties(libblockfrost-v0 PROPERTIES PREFIX "")
+install(TARGETS libblockfrost-v0 LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
 add_subdirectory(examples)

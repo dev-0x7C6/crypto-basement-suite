@@ -22,4 +22,7 @@ target_link_libraries(libcoingecko-v3 PRIVATE
     CURL::libcurl
 )
 
+set_target_properties(libcoingecko-v3 PROPERTIES PREFIX "")
+install(TARGETS libcoingecko-v3 LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
 add_subdirectory(examples)

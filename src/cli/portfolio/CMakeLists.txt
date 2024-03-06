@@ -17,3 +17,5 @@ target_link_libraries(cbs-portfolio
     spdlog::spdlog
     cbs-common
 )
+
+install(TARGETS cbs-portfolio RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

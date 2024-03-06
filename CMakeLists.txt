@@ -12,6 +12,8 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 add_compile_definitions("-D__cpp_concepts=202002L")
 
+include(GNUInstallDirs)
+
 find_package(CLI11 REQUIRED)
 find_package(benchmark REQUIRED)
 find_package(nlohmann_json REQUIRED)
