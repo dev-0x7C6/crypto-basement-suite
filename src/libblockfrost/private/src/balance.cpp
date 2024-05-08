@@ -1,6 +1,7 @@
 #include "libblockfrost/v0/balance.hpp"
 #include "api.hpp"
 #include <fmt/format.h>
+#include <optional>
 #include <string>
 
 auto blockfrost::v0::address_balance(const std::string &address, const options &opts) -> std::optional<double> {
@@ -22,7 +23,7 @@ auto blockfrost::v0::accounts_balance(const std::string &address, const options 
     return std::stoull(json->value("controlled_amount", "0")) / 1000000.0;
 }
 
-auto blockfrost::v0::accounts_assets_balance(const std::string &stake_key, const options &opts) -> std::vector<asset> {
+auto blockfrost::v0::accounts_assets_balance(const std::string &stake_key, const options &opts) -> std::optional<std::vector<asset>> {
     constexpr auto max_items_per_page = 100;
     auto page{1};
 

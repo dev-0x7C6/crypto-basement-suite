@@ -1,6 +1,9 @@
 #include <CLI/CLI.hpp>
+#include <curlpp/Easy.hpp>
+#include <curlpp/Multi.hpp>
 
 #include <algorithm>
+#include <curlpp/cURLpp.hpp>
 #include <expected>
 #include <functional>
 #include <iterator>
@@ -56,8 +59,8 @@ auto repeat(const shared_ptr<spdlog::logger> &logger, Callable &callable, Ts &&.
         auto ret = callable(std::forward<Ts>(values)...);
         if (ret)
             return ret;
-        logger->info("retry, waiting 1min for coingecko");
-        this_thread::sleep_for(1min);
+        logger->info("retry, waiting 1min 30secs for coingecko");
+        this_thread::sleep_for(1min + 30s);
     }
 }
 
@@ -88,6 +91,8 @@ auto calculate(const portfolio &portfolio,
 } // namespace shares
 
 auto main(int argc, char **argv) -> int {
+    curlpp::initialize();
+
     auto logger = spdlog::stdout_color_mt("portfolio");
     logger->set_pattern("%v");
 
@@ -137,7 +142,7 @@ auto main(int argc, char **argv) -> int {
             if (!contract_to_symbol.contains(coin)) continue;
             const auto &info = contract_to_symbol[coin];
             logger->info("found coin asset {}", info);
-            // input.emplace_back(std::make_pair(info, quantity));
+            // balances.emplace_back(std::make_pair(info, quantity / 1000000));
         }
     }
 

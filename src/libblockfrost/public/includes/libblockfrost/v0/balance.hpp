@@ -15,5 +15,5 @@ struct asset {
 
 auto address_balance(const std::string &address, const options &opts = {}) -> std::optional<double>;
 auto accounts_balance(const std::string &address, const options &opts = {}) -> std::optional<double>;
-auto accounts_assets_balance(const std::string &stake_key, const options &opts = {}) -> std::vector<asset>;
+auto accounts_assets_balance(const std::string &stake_key, const options &opts = {}) -> std::optional<std::vector<asset>>;
 }
