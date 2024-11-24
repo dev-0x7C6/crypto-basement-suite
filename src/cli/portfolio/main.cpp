@@ -1,12 +1,19 @@
 #include <CLI/CLI.hpp>
 
 #include <algorithm>
+#include <chrono>
+#include <cstdint>
 #include <expected>
 #include <functional>
 #include <iterator>
 #include <map>
 #include <memory>
+#include <numeric>
 #include <optional>
+#include <ostream>
+#include <range/v3/algorithm/fold_left.hpp>
+#include <range/v3/numeric/accumulate.hpp>
+#include <range/v3/view/slice.hpp>
 #include <spdlog/logger.h>
 #include <string>
 #include <thread>
@@ -16,13 +23,14 @@
 #include <csv.hpp>
 #include <types.hpp>
 
+#include <ranges>
+
 #include <libblockfrost/public/includes/libblockfrost/v0/balance.hpp>
 #include <libcoingecko/v3/coins/list.hpp>
 #include <libcoingecko/v3/global/global.hpp>
 #include <libcoingecko/v3/simple/price.hpp>
 
-#include <range/v3/view/filter.hpp>
-#include <range/v3/view/join.hpp>
+#include <range/v3/all.hpp>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
@@ -87,9 +95,56 @@ auto calculate(const portfolio &portfolio,
 }
 } // namespace shares
 
+/*
+0 (Bitcoin launch)	3rd Jan 2009	0 (Genesis Block)	50 BTC	50%	N/A
+1st halving	28th Nov 2012	210,000	25 BTC	75%	$12.35
+2nd halving	9th Jul 2016	420,000	12.5 BTC	87.5%	$650.53
+3rd halving	11th May 2020	630,000	6.25 BTC	93.75%	$8,571.67
+4th halving	19th April 2024	840,000	3.125 BTC	96.875%	$63,842.56
+*/
+
+template <>
+struct fmt::formatter<std::chrono::year_month_day> {
+    template <typename ParseContext>
+    auto parse(ParseContext &ctx) { return ctx.begin(); }
+
+    template <typename FormatContext>
+    auto format(const std::chrono::year_month_day &ymd, FormatContext &ctx) -> decltype(ctx.out()) {
+        const auto y = static_cast<std::int32_t>(ymd.year());
+        const auto m = static_cast<std::uint32_t>(ymd.month());
+        const auto d = static_cast<std::uint32_t>(ymd.day());
+        return fmt::format_to(ctx.out(), "{:04}-{:02}-{:02}", y, m, d);
+    }
+};
+
 auto main(int argc, char **argv) -> int {
     auto logger = spdlog::stdout_color_mt("portfolio");
     logger->set_pattern("%v");
+
+    using namespace std::chrono;
+
+    const std::vector<year_month_day> btc_halving_date_table{
+        {2009y / January / 3},
+        {2012y / November / 28},
+        {2016y / July / 9},
+        {2020y / May / 11},
+        {2024y / April / 19}};
+
+    std::vector<int> btc_halving_day_count;
+
+    for (auto &&compare : btc_halving_date_table | std::views::slide(2)) {
+        const auto start = sys_days(compare.front());
+        const auto end = sys_days(compare.back());
+        btc_halving_day_count.push_back(days(end - start).count());
+    }
+
+    const auto sum = ::ranges::fold_left(btc_halving_day_count, int(0), std::plus<int>());
+    const auto avg = sum / btc_halving_day_count.size();
+
+    const auto last_halving = sys_days(btc_halving_date_table.back());
+    const auto next_halving = year_month_day(last_halving + days(avg));
+
+    logger->info("next halving approximation: {}", fmt::to_string(next_halving));
 
     auto expected_config = cli::parse(argc, argv);
     if (!expected_config)
