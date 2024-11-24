@@ -7,7 +7,4 @@ target_include_directories(cbs-networking PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
-target_link_libraries(cbs-networking PUBLIC
-    PkgConfig::Curl++
-    CURL::libcurl
-)
+target_link_libraries(cbs-networking PUBLIC CURL::libcurl)

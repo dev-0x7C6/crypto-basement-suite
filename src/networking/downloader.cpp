@@ -1,37 +1,27 @@
 #include "downloader.hpp"
 
-#include <curlpp/Easy.hpp>
-#include <curlpp/Options.hpp>
-#include <curlpp/cURLpp.hpp>
-
+#include <curl/curl.h>
 #include <sstream>
 
-namespace network {
-
-auto request(const std::string &url) -> std::optional<std::string> {
-    using namespace curlpp;
-    using namespace curlpp::options;
-    try {
-        Cleanup cleanup;
-        Easy request;
-        request.setOpt<Url>(url);
-
-        std::stringstream stream;
-        stream << request;
-        return stream.str();
-    }
-
-    catch (RuntimeError &e) {
-        std::cout << e.what() << std::endl;
-        return {};
-    }
-
-    catch (LogicError &e) {
-        std::cout << e.what() << std::endl;
-        return {};
-    }
-
-    return {};
+static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp) {
+    ((std::string *)userp)->append((char *)contents, size * nmemb);
+    return size * nmemb;
 }
 
+namespace network {
+auto request(const std::string &url) -> std::optional<std::string> {
+    std::string content;
+
+    const auto curl = curl_easy_init();
+    if (!curl)
+        return {};
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &content);
+    const auto res = curl_easy_perform(curl);
+    curl_easy_cleanup(curl);
+
+    return content;
+}
 } // namespace network

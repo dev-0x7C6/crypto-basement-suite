@@ -1,12 +1,9 @@
 #include "api.hpp"
 
-#include <curlpp/Easy.hpp>
-#include <curlpp/Exception.hpp>
-#include <curlpp/Options.hpp>
-#include <curlpp/cURLpp.hpp>
-#include <expected>
+#include <curl/curl.h>
 #include <nlohmann/json.hpp>
 
+#include <expected>
 #include <format>
 #include <sstream>
 
@@ -14,33 +11,28 @@ using namespace nlohmann;
 
 using error = coingecko::v3::error;
 
+static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp) {
+    ((std::string *)userp)->append((char *)contents, size * nmemb);
+    return size * nmemb;
+}
+
 namespace {
 
 namespace network {
 auto request(const std::string &url) -> std::expected<std::string, error> {
-    using namespace curlpp;
-    using namespace curlpp::options;
-    try {
-        Cleanup cleanup;
-        Easy request;
-        request.setOpt<Url>(url);
+    std::string content;
 
-        std::stringstream stream;
-        stream << request;
-        return std::string(stream.str());
-    }
-
-    catch (RuntimeError &e) {
-        std::cout << e.what() << std::endl;
+    const auto curl = curl_easy_init();
+    if (!curl)
         return std::unexpected(error::generic_error);
-    }
 
-    catch (LogicError &e) {
-        std::cout << e.what() << std::endl;
-        return std::unexpected(error::generic_error);
-    }
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &content);
+    const auto res = curl_easy_perform(curl);
+    curl_easy_cleanup(curl);
 
-    return std::unexpected(error::generic_error);
+    return content;
 }
 } // namespace network
 

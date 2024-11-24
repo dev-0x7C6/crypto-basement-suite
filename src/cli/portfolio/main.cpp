@@ -1,9 +1,6 @@
 #include <CLI/CLI.hpp>
-#include <curlpp/Easy.hpp>
-#include <curlpp/Multi.hpp>
 
 #include <algorithm>
-#include <curlpp/cURLpp.hpp>
 #include <expected>
 #include <functional>
 #include <iterator>
@@ -91,8 +88,6 @@ auto calculate(const portfolio &portfolio,
 } // namespace shares
 
 auto main(int argc, char **argv) -> int {
-    curlpp::initialize();
-
     auto logger = spdlog::stdout_color_mt("portfolio");
     logger->set_pattern("%v");
 
