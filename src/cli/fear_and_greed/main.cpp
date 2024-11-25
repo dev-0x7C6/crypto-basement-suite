@@ -8,7 +8,7 @@
 #include <sstream>
 #include <vector>
 
-#include <networking/downloader.hpp>
+#include <rest/requests.hpp>
 #include <types.hpp>
 
 using namespace ranges;
@@ -47,7 +47,7 @@ auto to_info(const json &v) noexcept -> std::vector<info> {
 auto main(int argc, char **argv) -> int {
     auto console = spdlog::stdout_color_mt("console");
 
-    const auto content = network::request("https://api.alternative.me/fng/?limit=32").value_or("");
+    const auto content = curl::request("https://api.alternative.me/fng/?limit=32").value_or("");
     const auto data = json::parse(content);
     const auto table = fear_and_greed::to_info(data);
 

@@ -297,9 +297,21 @@ auto main(int argc, char **argv) -> int {
     const auto total_market_cap_change = format::percent(global_market.market_cap_change_percentage_24h_usd, -5, 5);
     logger->info(" -> {} {}", total_market_cap, total_market_cap_change);
 
+    auto to_symbol = [](const std::string &in) -> std::string {
+        static const std::map<std::string, std::string> symbols{{"btc", "₿"},
+            {"eur", "€"},
+            {"usd", "$"},
+            {"sats", "s₿"}};
+
+        if (symbols.contains(in))
+            return symbols.at(in);
+
+        return in;
+    };
+
     logger->info("\n+ total");
     for (auto &&[currency, valuation] : total)
-        logger->info(" -> {} {}", format::price(valuation, config), currency);
+        logger->info(" -> {} {}", format::price(valuation, config), to_symbol(currency));
 
     return 0;
 }

@@ -7,7 +7,7 @@ add_executable(cbs-portfolio
 )
 
 target_link_libraries(cbs-portfolio
-    cbs-networking
+    thin-curl-requests
     libcoingecko-v3
     libblockfrost-v0
     CLI11::CLI11
