@@ -9,7 +9,7 @@
 namespace format {
 
 auto share(double value, const configuration &cfg) noexcept -> std::string {
-    if (cfg.hide.balances)
+    if (cfg.hide.shares)
         return "---%";
 
     return std::format("{:.2f}%", value);
