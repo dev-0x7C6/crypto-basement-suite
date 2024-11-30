@@ -227,6 +227,11 @@ auto main(int argc, char **argv) -> int {
     map<string, double> _24h_change;
 
     for (auto &&[asset, ballance] : portfolio) {
+        if (!summary.contains(asset)) {
+            logger->warn("asset '{}' not mapped", asset);
+            continue;
+        }
+
         const auto &prices = summary.at(asset);
 
         if (config.hide.balances)
