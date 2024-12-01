@@ -18,6 +18,7 @@ auto parse(int argc, char **argv) -> std::expected<configuration, int> {
     app.add_option("--coingecko-api-key", config.coingecko.key, "https://www.coingecko.com/en/api");
     app.add_flag("--hide-balances", config.hide.balances, "hide balances");
     app.add_flag("--hide-shares", config.hide.shares, "hide shares");
+    app.add_option("--cardano-token-registry", config.cardano.token_registry_path, "path to cardano token registry");
 
     try {
         app.parse(argc, argv);

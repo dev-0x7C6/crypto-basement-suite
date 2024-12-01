@@ -4,21 +4,23 @@
 #include <chrono>
 #include <cstdint>
 #include <expected>
+#include <filesystem>
+#include <fstream>
 #include <functional>
+#include <iostream>
 #include <iterator>
 #include <map>
 #include <memory>
-#include <numeric>
 #include <optional>
-#include <ostream>
-#include <range/v3/algorithm/fold_left.hpp>
-#include <range/v3/numeric/accumulate.hpp>
-#include <range/v3/view/slice.hpp>
-#include <spdlog/logger.h>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <utility>
+
 #include <vector>
+
+#include <nlohmann/json.hpp>
+#include <spdlog/logger.h>
 
 #include <csv.hpp>
 #include <types.hpp>
@@ -117,6 +119,25 @@ struct fmt::formatter<std::chrono::year_month_day> {
     }
 };
 
+auto read_file_to_string(const std::filesystem::path &filepath) -> std::optional<std::string> {
+    std::ifstream file(filepath, std::ios::in | std::ios::binary);
+
+    if (!file.is_open())
+        return {};
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+
+    return buffer.str();
+}
+
+namespace cardano::token {
+struct details {
+    int decimals{};
+};
+
+} // namespace cardano::token
+
 auto main(int argc, char **argv) -> int {
     auto logger = spdlog::stdout_color_mt("portfolio");
     logger->set_pattern("%v");
@@ -151,6 +172,26 @@ auto main(int argc, char **argv) -> int {
         return expected_config.error();
 
     const auto config = std::move(expected_config.value());
+
+    std::map<std::string, cardano::token::details> cardano_token_registry;
+
+    if (std::filesystem::exists(config.cardano.token_registry_path)) {
+        for (auto &&entry : std::filesystem::recursive_directory_iterator(config.cardano.token_registry_path)) {
+            if (!entry.is_regular_file()) continue;
+            if (entry.path().extension() != ".json") continue;
+            auto data = nlohmann::json::parse(read_file_to_string(entry.path()).value_or(""), nullptr, false);
+
+            auto name = entry.path().filename().string();
+            cardano::token::details details{
+                .decimals = data.value("decimals/value", 0)};
+
+            cardano_token_registry[name] = details;
+        }
+    }
+
+    for (auto &&[key, value] : cardano_token_registry) {
+        logger->info("{}, decimals {}", key, value.decimals);
+    }
 
     auto balances = readers::balances_from_csv(config.balances);
     auto wallets = readers::wallets_from_csv(config.track_wallets);

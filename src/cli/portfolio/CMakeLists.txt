@@ -15,6 +15,7 @@ target_link_libraries(cbs-portfolio
     range-v3::concepts
     range-v3::range-v3
     spdlog::spdlog
+    nlohmann_json::nlohmann_json
     cbs-common
 )
 

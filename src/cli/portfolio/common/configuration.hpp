@@ -3,6 +3,7 @@
 #include <libblockfrost/public/includes/libblockfrost/v0/options.hpp>
 #include <libcoingecko/v3/options.hpp>
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -13,6 +14,10 @@ struct configuration {
     std::vector<std::string> balances;
     std::vector<std::string> track_wallets;
     std::string preferred_currency{"usd"};
+
+    struct {
+        std::filesystem::path token_registry_path;
+    } cardano;
 
     struct {
         bool balances{false};
