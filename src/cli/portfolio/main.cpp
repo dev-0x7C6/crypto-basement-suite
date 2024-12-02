@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <expected>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -137,6 +138,10 @@ struct details {
 
 } // namespace cardano::token
 
+auto quote(auto &&value) -> std::string {
+    return std::format("'{}'", std::forward<decltype(value)>(value));
+}
+
 auto main(int argc, char **argv) -> int {
     auto logger = spdlog::stdout_color_mt("portfolio");
     logger->set_pattern("%v");
@@ -241,13 +246,15 @@ auto main(int argc, char **argv) -> int {
         const auto assets = request.get();
         for (auto &&[contract, quantity] : assets) {
             if (!contract_to_symbol.contains(contract)) continue;
+            if (!cardano_token_registry.contains(contract)) continue;
+
             const auto &info = contract_to_symbol[contract];
             const auto div = cardano_token_registry.at(contract).divisor;
 
-            logger->info("found coin asset '{}'", info);
-            logger->info("  contract: '{}'", contract);
-            logger->info("  quantity: '{}'", quantity);
-            logger->info("   divisor: '{}'", div);
+            logger->info("found coin asset {}", quote(info));
+            logger->info("  contract: {}", quote(contract));
+            logger->info("  quantity: {}", quote(quantity));
+            logger->info("   divisor: {}", quote(div));
 
             balances.emplace_back(std::make_pair(info, quantity / div));
         }
