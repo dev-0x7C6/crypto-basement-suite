@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <expected>
 #include <filesystem>
@@ -12,29 +13,27 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <sstream>
 #include <string>
 #include <thread>
 #include <utility>
-
 #include <vector>
 
 #include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
+#include <range/v3/all.hpp>
 #include <spdlog/logger.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/spdlog.h>
 
 #include <csv.hpp>
 #include <types.hpp>
-
-#include <ranges>
 
 #include <libblockfrost/public/includes/libblockfrost/v0/balance.hpp>
 #include <libcoingecko/v3/coins/list.hpp>
 #include <libcoingecko/v3/global/global.hpp>
 #include <libcoingecko/v3/simple/price.hpp>
-
-#include <range/v3/all.hpp>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/spdlog.h>
 
 #include "chain/cardano.hpp"
 #include "cli/cli.hpp"
@@ -133,7 +132,7 @@ auto read_file_to_string(const std::filesystem::path &filepath) -> std::optional
 
 namespace cardano::token {
 struct details {
-    int decimals{};
+    double divisor{1.0};
 };
 
 } // namespace cardano::token
@@ -181,16 +180,18 @@ auto main(int argc, char **argv) -> int {
             if (entry.path().extension() != ".json") continue;
             auto data = nlohmann::json::parse(read_file_to_string(entry.path()).value_or(""), nullptr, false);
 
-            auto name = entry.path().filename().string();
-            cardano::token::details details{
-                .decimals = data.value("decimals/value", 0)};
+            auto name = entry.path().stem().string();
+            logger->info("{}", name);
+            cardano::token::details details{};
+
+            try {
+                const auto decimal = data.at("decimals").at("value").get<int>();
+                details.divisor = std::pow(10, decimal);
+            } catch (const nlohmann::json::out_of_range &e) {
+            }
 
             cardano_token_registry[name] = details;
         }
-    }
-
-    for (auto &&[key, value] : cardano_token_registry) {
-        logger->info("{}, decimals {}", key, value.decimals);
     }
 
     auto balances = readers::balances_from_csv(config.balances);
@@ -227,13 +228,28 @@ auto main(int argc, char **argv) -> int {
             std::move(value.begin(), value.end(), std::back_inserter(balances));
     }
 
+    std::vector<std::pair<std::string, std::string>> coingecko_contract_corrections{
+        {"29d222ce763455e3d7a09a665ce554f00ac89d2e99a1a83d267170c6", "29d222ce763455e3d7a09a665ce554f00ac89d2e99a1a83d267170c64d494e"},
+        {"1d7f33bd23d85e1a25d87d86fac4f199c3197a2f7afeb662a0f34e1e", "1d7f33bd23d85e1a25d87d86fac4f199c3197a2f7afeb662a0f34e1e776f726c646d6f62696c65746f6b656e"},
+        {"e5a42a1a1d3d1da71b0449663c32798725888d2eb0843c4dabeca05a", "e5a42a1a1d3d1da71b0449663c32798725888d2eb0843c4dabeca05a576f726c644d6f62696c65546f6b656e58"}};
+
+    for (auto &&[affected_contract, alias] : coingecko_contract_corrections)
+        if (contract_to_symbol.contains(affected_contract))
+            contract_to_symbol[alias] = affected_contract;
+
     for (auto &&request : assets_reqs) {
         const auto assets = request.get();
-        for (auto &&[coin, quantity] : assets) {
-            if (!contract_to_symbol.contains(coin)) continue;
-            const auto &info = contract_to_symbol[coin];
-            logger->info("found coin asset {}", info);
-            // balances.emplace_back(std::make_pair(info, quantity / 1000000));
+        for (auto &&[contract, quantity] : assets) {
+            if (!contract_to_symbol.contains(contract)) continue;
+            const auto &info = contract_to_symbol[contract];
+            const auto div = cardano_token_registry.at(contract).divisor;
+
+            logger->info("found coin asset '{}'", info);
+            logger->info("  contract: '{}'", contract);
+            logger->info("  quantity: '{}'", quantity);
+            logger->info("   divisor: '{}'", div);
+
+            balances.emplace_back(std::make_pair(info, quantity / div));
         }
     }
 
