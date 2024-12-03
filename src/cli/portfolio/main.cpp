@@ -39,6 +39,7 @@
 
 #include "chain/cardano.hpp"
 #include "cli/cli.hpp"
+#include "common/short_scales.hpp"
 #include "extensions/cardano-registry-scanner.hpp"
 #include "helpers/formatter.hpp"
 #include "helpers/threading.hpp"
@@ -340,19 +341,14 @@ auto main(int argc, char **argv) -> int {
     }
 
     logger->info("\n+ global market");
-    const auto total_market_cap = fmt::format("{:.3f} T", global_market.total_market_cap.at("usd") / 1000 / 1000 / 1000 / 1000);
+    const auto total_market_cap = fmt::format("{:.3f} T", global_market.total_market_cap.at("usd") / short_scales::trillion);
     const auto total_market_cap_change = format::percent(global_market.market_cap_change_percentage_24h_usd, -5, 5);
     logger->info(" -> {} {}", total_market_cap, total_market_cap_change);
 
     logger->info("\n+ total");
 
     std::set<std::string> hide_ranks{"btc"};
-    std::map<std::string, int> preferred_decimal_count{
-        {"btc", 8}, //
-        {"usd", 2}, //
-        {"pln", 2}, //
-        {"eur", 2}, //
-    };
+    std::map<std::string, int> preferred_decimal_count{{"btc", 8}};
 
     for (auto &&[currency, valuation] : total) {
         const auto demical = value_or(preferred_decimal_count, currency, 2);
