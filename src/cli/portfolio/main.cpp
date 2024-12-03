@@ -39,6 +39,7 @@
 
 #include "chain/cardano.hpp"
 #include "cli/cli.hpp"
+#include "extensions/cardano-registry-scanner.hpp"
 #include "helpers/formatter.hpp"
 #include "helpers/threading.hpp"
 
@@ -120,18 +121,6 @@ struct fmt::formatter<std::chrono::year_month_day> {
     }
 };
 
-auto read_file_to_string(const std::filesystem::path &filepath) -> std::optional<std::string> {
-    std::ifstream file(filepath, std::ios::in | std::ios::binary);
-
-    if (!file.is_open())
-        return {};
-
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-
-    return buffer.str();
-}
-
 namespace cardano::token {
 struct details {
     double divisor{1.0};
@@ -186,27 +175,7 @@ auto main(int argc, char **argv) -> int {
 
     const auto config = std::move(expected_config.value());
 
-    std::map<std::string, cardano::token::details> cardano_token_registry;
-
-    if (std::filesystem::exists(config.cardano.token_registry_path)) {
-        for (auto &&entry : std::filesystem::recursive_directory_iterator(config.cardano.token_registry_path)) {
-            if (!entry.is_regular_file()) continue;
-            if (entry.path().extension() != ".json") continue;
-            auto data = nlohmann::json::parse(read_file_to_string(entry.path()).value_or(""), nullptr, false);
-
-            auto name = entry.path().stem().string();
-            logger->info("{}", name);
-            cardano::token::details details{};
-
-            try {
-                const auto decimal = data.at("decimals").at("value").get<int>();
-                details.divisor = std::pow(10, decimal);
-            } catch (const nlohmann::json::out_of_range &e) {
-            }
-
-            cardano_token_registry[name] = details;
-        }
-    }
+    const auto cardano_token_registry = cardano::registry::scan(config.cardano.token_registry_path);
 
     auto balances = readers::balances_from_csv(config.balances);
     auto wallets = readers::wallets_from_csv(config.track_wallets);
