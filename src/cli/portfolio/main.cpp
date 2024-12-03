@@ -242,7 +242,7 @@ auto main(int argc, char **argv) -> int {
         logger->info("coingecko::v3: requesting prices");
         return repeat(logger, simple::price::query, //
             simple::price::parameters{
-                .ids = balances | ::ranges::views::keys | ::ranges::to<vector<string>>(),
+                .ids = balances | ::ranges::views::keys | ::ranges::to<std::set<string>>(),
                 .vs_currencies = {"usd", "btc", "pln", "eur", config.preferred_currency},
             },
             config.coingecko);

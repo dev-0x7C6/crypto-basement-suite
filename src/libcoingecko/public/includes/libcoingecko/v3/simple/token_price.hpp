@@ -3,15 +3,15 @@
 #include <libcoingecko/v3/options.hpp>
 
 #include <map>
+#include <set>
 #include <string>
-#include <vector>
 
 namespace coingecko::v3::simple::token_price {
 
 struct parameters {
     std::string id; // assets
-    std::vector<std::string> contract_addresses; //
-    std::vector<std::string> vs_currencies; // usd
+    std::set<std::string> contract_addresses; //
+    std::set<std::string> vs_currencies; // usd
     bool include_market_cap{true};
     bool include_24hr_vol{true};
     bool include_24hr_change{true};
@@ -28,6 +28,6 @@ struct price {
 
 using prices = std::map<std::string, std::map<std::string, struct price>>;
 
-auto query(const options &opts = {}) -> std::expected<std::vector<std::string>, error>;
+auto query(const options &opts = {}) -> std::expected<std::set<std::string>, error>;
 
 } // namespace coingecko::v3::simple::token_price

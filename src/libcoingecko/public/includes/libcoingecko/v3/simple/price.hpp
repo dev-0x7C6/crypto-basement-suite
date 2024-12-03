@@ -3,15 +3,13 @@
 #include <libcoingecko/v3/options.hpp>
 
 #include <map>
-#include <vector>
-
-using strings = std::vector<std::string>;
+#include <set>
 
 namespace coingecko::v3::simple::price {
 
 struct parameters {
-    strings ids; // assets
-    strings vs_currencies; // usd
+    std::set<std::string> ids; // assets
+    std::set<std::string> vs_currencies; // usd
     bool include_market_cap{true};
     bool include_24hr_vol{true};
     bool include_24hr_change{true};

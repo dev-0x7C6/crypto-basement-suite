@@ -2,13 +2,11 @@
 
 #include <libcoingecko/v3/options.hpp>
 
-#include <map>
-#include <vector>
+#include <set>
+#include <string>
 
 namespace coingecko::v3::simple::supported_vs_currencies {
 
-using strings = std::vector<std::string>;
-
-auto query(const options &opts = {}) -> std::expected<strings, error>;
+auto query(const options &opts = {}) -> std::expected<std::set<std::string>, error>;
 
 } // namespace coingecko::v3::simple::supported_vs_currencies
