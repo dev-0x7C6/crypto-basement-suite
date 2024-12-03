@@ -14,6 +14,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <range/v3/view/map.hpp>
 #include <ranges>
 #include <sstream>
 #include <string>
@@ -142,6 +143,14 @@ auto quote(auto &&value) -> std::string {
     return std::format("'{}'", std::forward<decltype(value)>(value));
 }
 
+template <typename K, typename V>
+auto value_or(const std::map<K, V> &in, const K &key, V &&v) {
+    try {
+        return in.at(key);
+    } catch (...) {}
+    return std::forward<V>(v);
+}
+
 auto main(int argc, char **argv) -> int {
     auto logger = spdlog::stdout_color_mt("portfolio");
     logger->set_pattern("%v");
@@ -264,8 +273,8 @@ auto main(int argc, char **argv) -> int {
         logger->info("coingecko::v3: requesting prices");
         return repeat(logger, simple::price::query, //
             simple::price::parameters{
-                .ids = balances | ::ranges::views::transform([](auto &&p) { return p.first; }) | ::ranges::to<vector<string>>(),
-                .vs_currencies = {"usd", "btc", "pln", "sats", "eur", config.preferred_currency},
+                .ids = balances | ::ranges::views::keys | ::ranges::to<vector<string>>(),
+                .vs_currencies = {"usd", "btc", "pln", "eur", config.preferred_currency},
             },
             config.coingecko);
     }});
@@ -292,7 +301,7 @@ auto main(int argc, char **argv) -> int {
 
     for (auto &&[asset, ballance] : portfolio) {
         if (!summary.contains(asset)) {
-            logger->warn("asset '{}' not mapped", asset);
+            logger->warn("asset {} not mapped", quote(asset));
             continue;
         }
 
@@ -366,21 +375,23 @@ auto main(int argc, char **argv) -> int {
     const auto total_market_cap_change = format::percent(global_market.market_cap_change_percentage_24h_usd, -5, 5);
     logger->info(" -> {} {}", total_market_cap, total_market_cap_change);
 
-    auto to_symbol = [](const std::string &in) -> std::string {
-        static const std::map<std::string, std::string> symbols{{"btc", "₿"},
-            {"eur", "€"},
-            {"usd", "$"},
-            {"sats", "s₿"}};
+    logger->info("\n+ total");
 
-        if (symbols.contains(in))
-            return symbols.at(in);
-
-        return in;
+    std::set<std::string> hide_ranks{"btc"};
+    std::map<std::string, int> preferred_decimal_count{
+        {"btc", 8}, //
+        {"usd", 2}, //
+        {"pln", 2}, //
+        {"eur", 2}, //
     };
 
-    logger->info("\n+ total");
-    for (auto &&[currency, valuation] : total)
-        logger->info(" -> {} {}", format::price(valuation, config), to_symbol(currency));
+    for (auto &&[currency, valuation] : total) {
+        const auto demical = value_or(preferred_decimal_count, currency, 2);
+        const auto hide_rank = hide_ranks.contains(currency);
+        const auto price = format::formatted_price(valuation, config, hide_rank, demical);
+        const auto symbol = format::to_symbol(currency);
+        logger->info(" -> {} {}", price, symbol);
+    }
 
     return 0;
 }
