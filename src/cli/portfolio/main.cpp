@@ -57,6 +57,10 @@ struct share {
     string asset;
     double share{};
     double quantity{};
+
+    constexpr auto operator<=>(const auto &other) const noexcept {
+        return this->share > other.share;
+    };
 };
 
 auto as_btc(const map<string, struct simple::price::price> &prices) -> optional<double> {
@@ -254,11 +258,7 @@ auto main(int argc, char **argv) -> int {
         }
 
         const auto &prices = summary.at(asset);
-
-        if (config.hide.balances)
-            logger->info("\n+ {} [---]", asset);
-        else
-            logger->info("\n+ {} [{:f}]", asset, ballance);
+        logger->info("\n+ {} [{}]", asset, format::price(ballance, config));
 
         for (auto &&[currency, valuation] : prices) {
             const auto value = ballance * valuation.value;
@@ -300,9 +300,7 @@ auto main(int argc, char **argv) -> int {
             config.preferred_currency);
     }
 
-    ::ranges::sort(shares, [](auto &&l, auto &&r) {
-        return l.share > r.share;
-    });
+    ::ranges::sort(shares, std::greater<share>());
 
     logger->info("\n+ shares");
     for (auto &&s : shares) {
@@ -336,8 +334,10 @@ auto main(int argc, char **argv) -> int {
     std::vector<std::pair<std::string, double>> total_sorted;
     auto total_vec = total | ::ranges::to<std::vector<std::pair<std::string, double>>>();
 
-    std::map<std::string, int> sort_rank{
-        {"btc", 2}, {config.preferred_currency, 1}};
+    const static std::map<std::string, int> sort_rank{
+        {"btc", 2},
+        {config.preferred_currency, 1},
+    };
 
     ::ranges::sort(total_vec, [&](auto &&lhs, auto &&rhs) {
         return value_or(sort_rank, lhs.first, 0) > value_or(sort_rank, rhs.first, 0);
