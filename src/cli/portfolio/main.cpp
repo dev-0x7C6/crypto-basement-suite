@@ -40,6 +40,7 @@
 #include "chain/cardano.hpp"
 #include "cli/cli.hpp"
 #include "common/short_scales.hpp"
+#include "extensions/btc-halving.hpp"
 #include "extensions/cardano-registry-scanner.hpp"
 #include "helpers/formatter.hpp"
 #include "helpers/threading.hpp"
@@ -145,31 +146,6 @@ auto main(int argc, char **argv) -> int {
     auto logger = spdlog::stdout_color_mt("portfolio");
     logger->set_pattern("%v");
 
-    using namespace std::chrono;
-
-    const std::vector<year_month_day> btc_halving_date_table{
-        {2009y / January / 3},
-        {2012y / November / 28},
-        {2016y / July / 9},
-        {2020y / May / 11},
-        {2024y / April / 19}};
-
-    std::vector<int> btc_halving_day_count;
-
-    for (auto &&compare : btc_halving_date_table | std::views::slide(2)) {
-        const auto start = sys_days(compare.front());
-        const auto end = sys_days(compare.back());
-        btc_halving_day_count.push_back(days(end - start).count());
-    }
-
-    const auto sum = ::ranges::fold_left(btc_halving_day_count, int(0), std::plus<int>());
-    const auto avg = sum / btc_halving_day_count.size();
-
-    const auto last_halving = sys_days(btc_halving_date_table.back());
-    const auto next_halving = year_month_day(last_halving + days(avg));
-
-    logger->info("next halving approximation: {}", fmt::to_string(next_halving));
-
     auto expected_config = cli::parse(argc, argv);
     if (!expected_config)
         return expected_config.error();
@@ -188,9 +164,20 @@ auto main(int argc, char **argv) -> int {
     using namespace coingecko::v3;
 
     const auto assets = repeat(logger, coins::list::query, coins::list::settings{}, config.coingecko);
+
+    std::map<std::string, std::string> coingecko_contract_corrections{
+        {"29d222ce763455e3d7a09a665ce554f00ac89d2e99a1a83d267170c6", "29d222ce763455e3d7a09a665ce554f00ac89d2e99a1a83d267170c64d494e"},
+        {"1d7f33bd23d85e1a25d87d86fac4f199c3197a2f7afeb662a0f34e1e", "1d7f33bd23d85e1a25d87d86fac4f199c3197a2f7afeb662a0f34e1e776f726c646d6f62696c65746f6b656e"},
+        {"e5a42a1a1d3d1da71b0449663c32798725888d2eb0843c4dabeca05a", "e5a42a1a1d3d1da71b0449663c32798725888d2eb0843c4dabeca05a576f726c644d6f62696c65546f6b656e58"},
+        {"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235", "a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235484f534b59"},
+    };
+
     for (auto &&asset : assets.value())
-        for (auto &&[_, contract] : asset.platforms)
+        for (auto &&[_, contract] : asset.platforms) {
             contract_to_symbol[contract] = asset.id;
+            if (coingecko_contract_corrections.contains(contract))
+                contract_to_symbol[coingecko_contract_corrections.at(contract)] = asset.id;
+        }
 
     map<string, chain::callback> wallet_balances;
     map<string, chain::callback> wallet_assets;
@@ -198,12 +185,12 @@ auto main(int argc, char **argv) -> int {
     wallet_balances["cardano"] = chain::cardano::balance;
     wallet_assets["cardano"] = chain::cardano::assets;
 
-    for (auto &&[coin, address] : wallets) {
-        if (wallet_balances.contains(coin))
-            balance_reqs.emplace_back(wallet_balances.at(coin)(logger, address, config));
+    for (auto &&[blockchain, address] : wallets) {
+        if (wallet_balances.contains(blockchain))
+            balance_reqs.emplace_back(wallet_balances.at(blockchain)(logger, address, config));
 
-        if (wallet_assets.contains(coin))
-            assets_reqs.emplace_back(wallet_assets.at(coin)(logger, address, config));
+        if (wallet_assets.contains(blockchain))
+            assets_reqs.emplace_back(wallet_assets.at(blockchain)(logger, address, config));
     }
 
     for (auto &&request : balance_reqs) {
@@ -211,17 +198,6 @@ auto main(int argc, char **argv) -> int {
         if (!value.empty())
             std::move(value.begin(), value.end(), std::back_inserter(balances));
     }
-
-    std::vector<std::pair<std::string, std::string>> coingecko_contract_corrections{
-        {"29d222ce763455e3d7a09a665ce554f00ac89d2e99a1a83d267170c6", "29d222ce763455e3d7a09a665ce554f00ac89d2e99a1a83d267170c64d494e"},
-        {"1d7f33bd23d85e1a25d87d86fac4f199c3197a2f7afeb662a0f34e1e", "1d7f33bd23d85e1a25d87d86fac4f199c3197a2f7afeb662a0f34e1e776f726c646d6f62696c65746f6b656e"},
-        {"e5a42a1a1d3d1da71b0449663c32798725888d2eb0843c4dabeca05a", "e5a42a1a1d3d1da71b0449663c32798725888d2eb0843c4dabeca05a576f726c644d6f62696c65546f6b656e58"},
-        {"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235", "a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235484f534b59"},
-    };
-
-    for (auto &&[affected_contract, alias] : coingecko_contract_corrections)
-        if (contract_to_symbol.contains(affected_contract))
-            contract_to_symbol[alias] = affected_contract;
 
     for (auto &&request : assets_reqs) {
         const auto assets = request.get();
@@ -343,6 +319,10 @@ auto main(int argc, char **argv) -> int {
             percent);
     }
 
+    const auto next_halving_aprox = bitcoin::halving::trivial_next_halving_approximation().front();
+    logger->info("\n+ additional:");
+    logger->info(" -> next halving approx.: {}", fmt::to_string(next_halving_aprox));
+
     logger->info("\n+ global market");
     const auto total_market_cap = fmt::format("{:.3f} T", global_market.total_market_cap.at("usd") / short_scales::trillion);
     const auto total_market_cap_change = format::percent(global_market.market_cap_change_percentage_24h_usd, -5, 5);
@@ -353,7 +333,17 @@ auto main(int argc, char **argv) -> int {
     std::set<std::string> hide_ranks{"btc"};
     std::map<std::string, int> preferred_decimal_count{{"btc", 8}};
 
-    for (auto &&[currency, valuation] : total) {
+    std::vector<std::pair<std::string, double>> total_sorted;
+    auto total_vec = total | ::ranges::to<std::vector<std::pair<std::string, double>>>();
+
+    std::map<std::string, int> sort_rank{
+        {"btc", 2}, {config.preferred_currency, 1}};
+
+    ::ranges::sort(total_vec, [&](auto &&lhs, auto &&rhs) {
+        return value_or(sort_rank, lhs.first, 0) > value_or(sort_rank, rhs.first, 0);
+    });
+
+    for (auto &&[currency, valuation] : total_vec) {
         const auto demical = value_or(preferred_decimal_count, currency, 2);
         const auto hide_rank = hide_ranks.contains(currency);
         const auto price = format::formatted_price(valuation, config, hide_rank, demical);

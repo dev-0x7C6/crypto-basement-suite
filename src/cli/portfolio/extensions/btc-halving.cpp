@@ -5,7 +5,7 @@
 
 namespace bitcoin::halving {
 
-auto trivial_next_halving_aproximation() -> std::vector<std::chrono::year_month_day> {
+auto trivial_next_halving_approximation() -> std::vector<std::chrono::year_month_day> {
     using namespace std::chrono;
 
     const std::vector<year_month_day> btc_halving_date_table{
