@@ -215,7 +215,9 @@ auto main(int argc, char **argv) -> int {
     std::vector<std::pair<std::string, std::string>> coingecko_contract_corrections{
         {"29d222ce763455e3d7a09a665ce554f00ac89d2e99a1a83d267170c6", "29d222ce763455e3d7a09a665ce554f00ac89d2e99a1a83d267170c64d494e"},
         {"1d7f33bd23d85e1a25d87d86fac4f199c3197a2f7afeb662a0f34e1e", "1d7f33bd23d85e1a25d87d86fac4f199c3197a2f7afeb662a0f34e1e776f726c646d6f62696c65746f6b656e"},
-        {"e5a42a1a1d3d1da71b0449663c32798725888d2eb0843c4dabeca05a", "e5a42a1a1d3d1da71b0449663c32798725888d2eb0843c4dabeca05a576f726c644d6f62696c65546f6b656e58"}};
+        {"e5a42a1a1d3d1da71b0449663c32798725888d2eb0843c4dabeca05a", "e5a42a1a1d3d1da71b0449663c32798725888d2eb0843c4dabeca05a576f726c644d6f62696c65546f6b656e58"},
+        {"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235", "a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235484f534b59"},
+    };
 
     for (auto &&[affected_contract, alias] : coingecko_contract_corrections)
         if (contract_to_symbol.contains(affected_contract))
@@ -332,6 +334,7 @@ auto main(int argc, char **argv) -> int {
         const auto percent = format::percent(_24h_change.at(s.asset));
         const auto share = format::share(s.share, config);
         const auto price = format::price(value, config);
+
         logger->info(" {:>20}: {}, {} {}, 24h: {}",
             s.asset,
             share,
