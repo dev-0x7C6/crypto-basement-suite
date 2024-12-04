@@ -39,6 +39,7 @@
 
 #include "chain/cardano.hpp"
 #include "cli/cli.hpp"
+#include "common/share.hpp"
 #include "common/short_scales.hpp"
 #include "extensions/btc-halving.hpp"
 #include "extensions/cardano-registry-scanner.hpp"
@@ -52,16 +53,6 @@ using namespace csv;
 using namespace coingecko::v3;
 using namespace std;
 using namespace std::chrono_literals;
-
-struct share {
-    string asset;
-    double share{};
-    double quantity{};
-
-    constexpr auto operator<=>(const auto &other) const noexcept {
-        return this->share > other.share;
-    };
-};
 
 auto as_btc(const map<string, struct simple::price::price> &prices) -> optional<double> {
     if (!prices.contains("btc")) return {};
@@ -78,40 +69,6 @@ auto repeat(const shared_ptr<spdlog::logger> &logger, Callable &callable, Ts &&.
         this_thread::sleep_for(1min + 30s);
     }
 }
-
-using portfolio = map<string, double>;
-
-namespace shares {
-auto calculate(const portfolio &portfolio,
-    function<optional<double>(const string &asset)> &&query_price,
-    double total) -> vector<share> {
-    vector<share> shares;
-
-    for (auto &&[asset, balance] : portfolio) {
-        const auto price = query_price(asset);
-
-        if (!price) continue;
-
-        const auto value = balance * price.value_or(0.0);
-
-        shares.push_back({
-            .asset = asset,
-            .share = value / total * 100.0,
-            .quantity = balance,
-        });
-    }
-
-    return shares;
-}
-} // namespace shares
-
-/*
-0 (Bitcoin launch)	3rd Jan 2009	0 (Genesis Block)	50 BTC	50%	N/A
-1st halving	28th Nov 2012	210,000	25 BTC	75%	$12.35
-2nd halving	9th Jul 2016	420,000	12.5 BTC	87.5%	$650.53
-3rd halving	11th May 2020	630,000	6.25 BTC	93.75%	$8,571.67
-4th halving	19th April 2024	840,000	3.125 BTC	96.875%	$63,842.56
-*/
 
 template <>
 struct fmt::formatter<std::chrono::year_month_day> {
@@ -300,7 +257,7 @@ auto main(int argc, char **argv) -> int {
             config.preferred_currency);
     }
 
-    ::ranges::sort(shares, std::greater<share>());
+    ::ranges::sort(shares, std::greater<shares::share>());
 
     logger->info("\n+ shares");
     for (auto &&s : shares) {
