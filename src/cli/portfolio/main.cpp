@@ -212,6 +212,7 @@ auto main(int argc, char **argv) -> int {
         if (!summary.contains(asset)) {
             logger->warn("asset {} not mapped", quote(asset));
             continue;
+
         }
 
         const auto &prices = summary.at(asset);
@@ -246,15 +247,17 @@ auto main(int argc, char **argv) -> int {
         return _24h_change.at(l.asset) > _24h_change.at(r.asset);
     });
 
+    const auto preferred_currency_symbol = format::to_symbol(config.preferred_currency);
+
     logger->info("\n+ 24h change (sorted):");
     for (auto &&share : shares) {
         const auto percent = format::percent(_24h_change.at(share.asset));
         const auto value = price(share.asset, config.preferred_currency).value_or(0.0);
-        logger->info(" {:>20}: {} [{:.2f} {}]",
+        logger->info(" {:>30}: {} [{:.2f} {}]",
             share.asset,
             percent,
             value,
-            config.preferred_currency);
+            preferred_currency_symbol);
     }
 
     ::ranges::sort(shares, std::greater<shares::share>());
@@ -269,8 +272,8 @@ auto main(int argc, char **argv) -> int {
         logger->info(" {:>20}: {}, {} {}, 24h: {}",
             s.asset,
             share,
-            price,
-            config.preferred_currency,
+            format::to_subscript(price),
+            preferred_currency_symbol,
             percent);
     }
 
