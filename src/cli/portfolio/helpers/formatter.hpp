@@ -7,8 +7,10 @@
 #include <format>
 #include <functional>
 #include <map>
-#include <range/v3/algorithm/sort.hpp>
+#include <ranges>
+#include <string>
 #include <utility>
+#include <vector>
 
 namespace format {
 
@@ -24,6 +26,30 @@ auto price(double value, const configuration &cfg) noexcept -> std::string {
         return "---";
 
     return std::format("{:.2f}", value);
+}
+
+constexpr auto to_subscript_char(const char v) -> std::string {
+    switch (v) {
+        case '0': return "\u2080";
+        case '1': return "\u2081";
+        case '2': return "\u2082";
+        case '3': return "\u2083";
+        case '4': return "\u2084";
+        case '5': return "\u2085";
+        case '6': return "\u2086";
+        case '7': return "\u2087";
+        case '8': return "\u2088";
+        case '9': return "\u2089";
+    }
+
+    return {v};
+};
+
+auto to_subscript(const std::string &in) -> std::string {
+    std::string ret;
+    for (auto &&v : in)
+        ret += to_subscript_char(v);
+    return ret;
 }
 
 auto to_symbol(const std::string &in) -> std::string {
@@ -48,7 +74,7 @@ auto magnitude_ranks() {
         {3, "k"},
     };
 
-    ranges::sort(ret, std::greater<rank>());
+    std::ranges::sort(ret, std::greater<rank>());
     return ret;
 }
 
