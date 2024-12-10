@@ -272,7 +272,7 @@ auto main(int argc, char **argv) -> int {
         logger->info(" {:>20}: {}, {} {}, 24h: {}",
             s.asset,
             share,
-            format::to_subscript(price),
+            price,
             preferred_currency_symbol,
             percent);
     }
