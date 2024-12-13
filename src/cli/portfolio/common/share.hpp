@@ -4,6 +4,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <vector>
 
 using portfolio = std::map<std::string, double>;
 
@@ -18,6 +19,8 @@ struct share {
         return this->share > other.share;
     };
 };
+
+using shares = std::vector<share>;
 
 using query_price_fn = std::function<std::optional<double>(const std::string &asset)>;
 

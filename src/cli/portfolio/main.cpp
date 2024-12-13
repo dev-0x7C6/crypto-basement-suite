@@ -47,6 +47,8 @@
 #include <QtCharts/QPieSlice>
 #include <QtCharts/QtCharts>
 
+#include "gui/share-chart.hpp"
+
 using namespace csv;
 using namespace coingecko::v3;
 using namespace std;
@@ -321,34 +323,6 @@ auto main(int argc, char **argv) -> int {
         return std::format("{} {:.0f}{}", share.asset, value, preferred_currency_symbol);
     };
 
-    auto generate_share_chart = [&](const std::vector<shares::share> &shares, const std::function<std::string(const shares::share &)> &formatter, double min = 2.00, double max = 100.0) {
-        auto series = new QPieSeries();
-        series->setHoleSize(0.2);
-
-        for (auto &&s : shares) {
-            if (s.share < min) continue;
-            if (s.share > max) continue;
-            const auto value = price(s.asset, config.preferred_currency).value_or(0.0) * s.quantity;
-
-            auto slice = series->append(QString::fromStdString(formatter(s)), s.share);
-            slice->setLabelArmLengthFactor(0.3);
-
-            series->setLabelsVisible(true);
-            series->setLabelsPosition(QPieSlice::LabelOutside);
-        }
-
-        auto chart = new QChart();
-        chart->setAnimationOptions(QChart::AllAnimations);
-        chart->setTheme(QChart::ChartThemeDark);
-        chart->legend()->setAlignment(Qt::AlignLeft);
-
-        auto view = new QChartView(chart);
-        view->chart()->addSeries(series);
-
-        view->setRenderHint(QPainter::Antialiasing);
-        return view;
-    };
-
     auto generate_24h_change_chart = [&]() {
         ::ranges::sort(shares, [&](auto &&l, auto &&r) {
             return _24h_change.at(l.asset) > _24h_change.at(r.asset);
@@ -378,10 +352,10 @@ auto main(int argc, char **argv) -> int {
         return view;
     };
 
-    tabs->addTab(generate_share_chart(shares, format_percent_shares), "shares");
-    tabs->addTab(generate_share_chart(shares, format_percent_shares, 0.00, 2.00), "shares small");
-    tabs->addTab(generate_share_chart(shares, format_prices_shares), "prices");
-    tabs->addTab(generate_share_chart(shares, format_prices_shares, 0.00, 2.00), "prices small");
+    tabs->addTab(gui::chart::shares(shares, format_percent_shares), "shares");
+    tabs->addTab(gui::chart::shares(shares, format_percent_shares, 0.00, 2.00), "shares small");
+    tabs->addTab(gui::chart::shares(shares, format_prices_shares), "prices");
+    tabs->addTab(gui::chart::shares(shares, format_prices_shares, 0.00, 2.00), "prices small");
     tabs->addTab(generate_24h_change_chart(), "24h change");
     tabs->resize(1366, 768);
     tabs->show();
