@@ -21,11 +21,29 @@ auto share(double value, const configuration &cfg) noexcept -> std::string {
     return std::format("{:.2f}%", value);
 }
 
-auto price(double value, const configuration &cfg) noexcept -> std::string {
-    if (cfg.hide.balances)
-        return "---";
+constexpr auto count_leading_zeros(double num) -> int {
+    if (num >= 1 || num <= 0) {
+        return 0;
+    }
 
-    return std::format("{:.2f}", value);
+    int count = 0;
+    while (num <= 1) {
+        num *= 10;
+        count++;
+    }
+
+    return count - 1;
+}
+
+constexpr auto calculate_multiplier(double num) -> double {
+    if (num <= 0 || num >= 1) {
+        return 1;
+    }
+
+    // Calculate the number of decimal places by using log10(1/num)
+    int num_places = static_cast<int>(std::log10(1.0 / num));
+    double multiplier = std::pow(10, num_places);
+    return multiplier;
 }
 
 constexpr auto to_subscript_char(const char v) -> std::string {
@@ -45,11 +63,26 @@ constexpr auto to_subscript_char(const char v) -> std::string {
     return {v};
 };
 
-auto to_subscript(const std::string &in) -> std::string {
+constexpr auto to_subscript(const std::string &in) -> std::string {
     std::string ret;
     for (auto &&v : in)
         ret += to_subscript_char(v);
     return ret;
+}
+
+auto price(double value, const configuration &cfg) noexcept -> std::string {
+    if (cfg.hide.balances)
+        return "---";
+
+    const auto x = count_leading_zeros(value);
+
+    if (1.0 > value) {
+        const auto vv = value * std::pow(10, x + 2);
+
+        return std::format("0{}{}", to_subscript(std::to_string(x)), static_cast<int>(vv));
+    }
+
+    return std::format("{:.2f}", value);
 }
 
 auto to_symbol(const std::string &in) -> std::string {

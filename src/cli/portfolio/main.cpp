@@ -1,32 +1,23 @@
-#include <CLI/CLI.hpp>
-
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <expected>
-#include <filesystem>
 #include <format>
-#include <fstream>
 #include <functional>
-#include <iostream>
 #include <iterator>
 #include <map>
 #include <memory>
 #include <optional>
-#include <range/v3/view/map.hpp>
 #include <ranges>
-#include <sstream>
 #include <string>
 #include <thread>
 #include <utility>
 #include <vector>
 
+#include <CLI/CLI.hpp>
 #include <nlohmann/json.hpp>
-#include <nlohmann/json_fwd.hpp>
 #include <range/v3/all.hpp>
-#include <spdlog/logger.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
 #include <csv.hpp>
@@ -45,9 +36,16 @@
 #include "extensions/cardano-registry-scanner.hpp"
 #include "helpers/formatter.hpp"
 #include "helpers/threading.hpp"
-
 #include "readers/balances.hpp"
 #include "readers/wallets.hpp"
+
+#include <QApplication>
+#include <QGroupBox>
+#include <QtCharts/QBarSeries>
+#include <QtCharts/QBarSet>
+#include <QtCharts/QPieLegendMarker>
+#include <QtCharts/QPieSlice>
+#include <QtCharts/QtCharts>
 
 using namespace csv;
 using namespace coingecko::v3;
@@ -212,7 +210,6 @@ auto main(int argc, char **argv) -> int {
         if (!summary.contains(asset)) {
             logger->warn("asset {} not mapped", quote(asset));
             continue;
-
         }
 
         const auto &prices = summary.at(asset);
@@ -253,10 +250,11 @@ auto main(int argc, char **argv) -> int {
     for (auto &&share : shares) {
         const auto percent = format::percent(_24h_change.at(share.asset));
         const auto value = price(share.asset, config.preferred_currency).value_or(0.0);
-        logger->info(" {:>30}: {} [{:.2f} {}]",
+        const auto fvalue = format::price(value, {});
+        logger->info(" {:>30}: {} [{}{}]",
             share.asset,
             percent,
-            value,
+            fvalue,
             preferred_currency_symbol);
     }
 
@@ -269,7 +267,7 @@ auto main(int argc, char **argv) -> int {
         const auto share = format::share(s.share, config);
         const auto price = format::price(value, config);
 
-        logger->info(" {:>20}: {}, {} {}, 24h: {}",
+        logger->info(" {:>20}: {}, {}{}, 24h: {}",
             s.asset,
             share,
             price,
@@ -311,5 +309,82 @@ auto main(int argc, char **argv) -> int {
         logger->info(" -> {} {}", price, symbol);
     }
 
-    return 0;
+    QApplication app(argc, argv);
+    auto tabs = new QTabWidget();
+
+    auto format_percent_shares = [](const shares::share &share) -> std::string {
+        return std::format("{} {:.2f}%", share.asset, share.share);
+    };
+
+    auto format_prices_shares = [&](const shares::share &share) -> std::string {
+        const auto value = price(share.asset, config.preferred_currency).value_or(0.0) * share.quantity;
+        return std::format("{} {:.0f}{}", share.asset, value, preferred_currency_symbol);
+    };
+
+    auto generate_share_chart = [&](const std::vector<shares::share> &shares, const std::function<std::string(const shares::share &)> &formatter, double min = 2.00, double max = 100.0) {
+        auto series = new QPieSeries();
+        series->setHoleSize(0.2);
+
+        for (auto &&s : shares) {
+            if (s.share < min) continue;
+            if (s.share > max) continue;
+            const auto value = price(s.asset, config.preferred_currency).value_or(0.0) * s.quantity;
+
+            auto slice = series->append(QString::fromStdString(formatter(s)), s.share);
+            slice->setLabelArmLengthFactor(0.3);
+
+            series->setLabelsVisible(true);
+            series->setLabelsPosition(QPieSlice::LabelOutside);
+        }
+
+        auto chart = new QChart();
+        chart->setAnimationOptions(QChart::AllAnimations);
+        chart->setTheme(QChart::ChartThemeDark);
+        chart->legend()->setAlignment(Qt::AlignLeft);
+
+        auto view = new QChartView(chart);
+        view->chart()->addSeries(series);
+
+        view->setRenderHint(QPainter::Antialiasing);
+        return view;
+    };
+
+    auto generate_24h_change_chart = [&]() {
+        ::ranges::sort(shares, [&](auto &&l, auto &&r) {
+            return _24h_change.at(l.asset) > _24h_change.at(r.asset);
+        });
+
+        auto series = new QBarSeries();
+
+        ::ranges::sort(shares, [&](auto &&l, auto &&r) {
+            return _24h_change.at(l.asset) > _24h_change.at(r.asset);
+        });
+
+        for (auto &&share : shares) {
+            auto values = new QBarSet(QString::fromStdString(share.asset));
+            *values << _24h_change.at(share.asset);
+            values->setLabel(QString::fromStdString(share.asset));
+            series->append(values);
+        }
+
+        auto chart = new QChart();
+        chart->setAnimationOptions(QChart::AllAnimations);
+        chart->setTheme(QChart::ChartThemeDark);
+        chart->setTitle("Simple Bar Chart");
+
+        auto view = new QChartView(chart);
+        view->chart()->addSeries(series);
+        view->setRenderHint(QPainter::Antialiasing);
+        return view;
+    };
+
+    tabs->addTab(generate_share_chart(shares, format_percent_shares), "shares");
+    tabs->addTab(generate_share_chart(shares, format_percent_shares, 0.00, 2.00), "shares small");
+    tabs->addTab(generate_share_chart(shares, format_prices_shares), "prices");
+    tabs->addTab(generate_share_chart(shares, format_prices_shares, 0.00, 2.00), "prices small");
+    tabs->addTab(generate_24h_change_chart(), "24h change");
+    tabs->resize(1366, 768);
+    tabs->show();
+
+    return app.exec();
 }
