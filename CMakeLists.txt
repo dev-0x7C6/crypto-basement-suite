@@ -1,16 +1,14 @@
-cmake_minimum_required(VERSION 3.20...3.26)
+cmake_minimum_required(VERSION 3.25...3.31)
 
 project(
   crypto-basement-suite
   VERSION 0.0.2
   LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
-add_compile_definitions("-D__cpp_concepts=202002L")
 
 include(GNUInstallDirs)
 
