@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <range/v3/view/transform.hpp>
 #include <ranges>
 #include <string>
 #include <thread>
@@ -330,21 +331,59 @@ auto main(int argc, char **argv) -> int {
 
         auto series = new QBarSeries();
 
-        ::ranges::sort(shares, [&](auto &&l, auto &&r) {
-            return _24h_change.at(l.asset) > _24h_change.at(r.asset);
-        });
+        auto _24h_sorted = _24h_change | std::ranges::to<std::vector<std::pair<std::string, double>>>();
 
-        for (auto &&share : shares) {
-            auto values = new QBarSet(QString::fromStdString(share.asset));
-            *values << _24h_change.at(share.asset);
-            values->setLabel(QString::fromStdString(share.asset));
+        ::ranges::sort(_24h_sorted, [&](auto &&l, auto &&r) { return l.second > r.second; });
+
+        for (auto &&[asset, change] : _24h_sorted) {
+            auto values = new QBarSet(QString::fromStdString(std::format("{} {:.2f}%", asset, change)));
+            *values << change;
             series->append(values);
         }
 
         auto chart = new QChart();
         chart->setAnimationOptions(QChart::AllAnimations);
-        chart->setTheme(QChart::ChartThemeDark);
-        chart->setTitle("Simple Bar Chart");
+        chart->setTheme(QChart::ChartThemeBlueCerulean);
+        chart->legend()->setAlignment(Qt::AlignLeft);
+        chart->setTitle("24h change");
+
+        auto view = new QChartView(chart);
+        view->chart()->addSeries(series);
+        view->setRenderHint(QPainter::Antialiasing);
+        return view;
+    };
+
+    auto generate_24h_value_chart = [&]() {
+        ::ranges::sort(shares, [&](auto &&l, auto &&r) {
+            return _24h_change.at(l.asset) > _24h_change.at(r.asset);
+        });
+
+        auto series = new QBarSeries();
+
+        auto _24h_sorted = _24h_change | std::ranges::to<std::vector<std::pair<std::string, double>>>();
+        auto map_shares = shares |
+            ::ranges::views::transform([](const shares::share &s) {
+                return std::make_pair(s.asset, s);
+            }) |
+            ::ranges::to<std::map<std::string, shares::share>>();
+
+        ::ranges::sort(_24h_sorted, [&](auto &&l, auto &&r) { return (l.second * map_shares.at(l.first).share) > (r.second * map_shares.at(r.first).share); });
+
+        for (auto &&[asset, change] : _24h_sorted) {
+            const auto s = map_shares.at(asset);
+            const auto p = price(asset, config.preferred_currency).value_or(0.0) * s.quantity;
+            const auto price_change = p - (p / (1.00 + (change / 100.0)));
+
+            auto values = new QBarSet(QString::fromStdString(std::format("{}, {:.2f}% [{:+.2f}{}]", asset, p, price_change, preferred_currency_symbol)));
+            *values << (change * map_shares.at(asset).share);
+            series->append(values);
+        }
+
+        auto chart = new QChart();
+        chart->setAnimationOptions(QChart::AllAnimations);
+        chart->setTheme(QChart::ChartThemeBlueCerulean);
+        chart->legend()->setAlignment(Qt::AlignLeft);
+        chart->setTitle("24h portfolio value change");
 
         auto view = new QChartView(chart);
         view->chart()->addSeries(series);
@@ -357,6 +396,8 @@ auto main(int argc, char **argv) -> int {
     tabs->addTab(gui::chart::shares(shares, format_prices_shares), "prices");
     tabs->addTab(gui::chart::shares(shares, format_prices_shares, 0.00, 2.00), "prices small");
     tabs->addTab(generate_24h_change_chart(), "24h change");
+    tabs->addTab(generate_24h_value_chart(), "24h by value");
+
     tabs->resize(1366, 768);
     tabs->show();
 
