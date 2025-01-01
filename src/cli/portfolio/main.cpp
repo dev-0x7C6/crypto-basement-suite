@@ -3,15 +3,18 @@
 #include <cmath>
 #include <cstdint>
 #include <expected>
+#include <filesystem>
 #include <format>
 #include <functional>
 #include <iterator>
 #include <map>
 #include <memory>
 #include <optional>
+#include <ostream>
 #include <range/v3/view/transform.hpp>
 #include <ranges>
 #include <string>
+#include <system_error>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -54,6 +57,7 @@ using namespace csv;
 using namespace coingecko::v3;
 using namespace std;
 using namespace std::chrono_literals;
+using namespace nlohmann;
 
 auto as_btc(const map<string, struct simple::price::price> &prices) -> optional<double> {
     if (!prices.contains("btc")) return {};
@@ -209,6 +213,8 @@ auto main(int argc, char **argv) -> int {
     map<string, double> total;
     map<string, double> _24h_change;
 
+    json portfolio_json_array = json::array();
+
     for (auto &&[asset, ballance] : portfolio) {
         if (!summary.contains(asset)) {
             logger->warn("asset {} not mapped", quote(asset));
@@ -218,16 +224,41 @@ auto main(int argc, char **argv) -> int {
         const auto &prices = summary.at(asset);
         logger->info("\n+ {} [{}]", asset, format::price(ballance, config));
 
+        json json_valuation_array = json::array();
         for (auto &&[currency, valuation] : prices) {
             const auto value = ballance * valuation.value;
             const auto _24h = valuation.change_24h;
             total[currency] += value;
             _24h_change[asset] = _24h;
             const auto formatted_price = format::price(value, config);
-
             logger->info(" -> {} {}", formatted_price, currency);
+            json_valuation_array.emplace_back(json{
+                {"currency", currency},
+                {"valuation", value},
+            });
         }
+
+        portfolio_json_array.emplace_back(json{
+            {"asset", asset},
+            {"balance", ballance},
+            {"valuation", std::move(json_valuation_array)},
+        });
     }
+
+    const auto timestamp_epoch = std::chrono::system_clock::now().time_since_epoch();
+    const auto timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(timestamp_epoch).count();
+
+    const auto portfolio_json_dump = json{
+        {"timestamp", timestamp_ms},
+        {"portfolio", portfolio_json_array},
+    };
+
+    const auto home_dir_path = getenv("HOME");
+
+    std::error_code ec{};
+    std::filesystem::create_directories(std::format("{}/.cache/crypto", home_dir_path), ec);
+    std::ofstream file(std::format("{}/.cache/crypto/dump_{}.json", home_dir_path, timestamp_ms));
+    file << portfolio_json_dump.dump(4);
 
     auto price = [&summary](const string &asset, const string &currency) -> optional<double> {
         try {
