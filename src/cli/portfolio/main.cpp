@@ -248,9 +248,17 @@ auto main(int argc, char **argv) -> int {
     const auto timestamp_epoch = std::chrono::system_clock::now().time_since_epoch();
     const auto timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(timestamp_epoch).count();
 
+    json total_valuation_array = json::array();
+    for (auto &&[currency, valuation] : total)
+        total_valuation_array.emplace_back(json{
+            {"currency", currency},
+            {"valuation", valuation},
+        });
+
     const auto portfolio_json_dump = json{
         {"timestamp", timestamp_ms},
         {"portfolio", portfolio_json_array},
+        {"total", total_valuation_array},
     };
 
     const auto home_dir_path = getenv("HOME");
