@@ -34,7 +34,7 @@ auto create_view(auto *chart) -> QChartView * {
     return view;
 }
 
-auto gui::chart::shares(const shares::shares &shares, const query_price_fn &query_price, double min, double max) -> QChartView * {
+auto gui::chart::shares(const shares::shares_vec &shares, const query_price_fn &query_price, double min, double max) -> QChartView * {
     auto series = create_pie_series();
     series->setPieStartAngle(min * 2);
 
@@ -48,17 +48,12 @@ auto gui::chart::shares(const shares::shares &shares, const query_price_fn &quer
     return create_view(create_chart(series, "shares"));
 };
 
-auto gui::chart::bitcoin_altcoin_ratio(const shares::shares &shares) -> QChartView * {
-    std::map<std::string, shares::share> map;
-
-    for (auto &&share : shares)
-        map[share.asset] = share;
-
-    if (!map.contains("bitcoin"))
+auto gui::chart::bitcoin_altcoin_ratio(const shares::shares_map &shares) -> QChartView * {
+    if (!shares.contains("bitcoin"))
         return nullptr;
 
     auto series = create_pie_series();
-    const auto bitcoin_ratio = map["bitcoin"].share;
+    const auto bitcoin_ratio = shares.at("bitcoin").share;
     const auto altcoin_ratio = 100.0 - bitcoin_ratio;
 
     series->append(QString::fromStdString(std::format("bitcoin {:.2f}%", bitcoin_ratio)), bitcoin_ratio);

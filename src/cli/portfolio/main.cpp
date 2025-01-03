@@ -391,7 +391,7 @@ auto main(int argc, char **argv) -> int {
         return view;
     };
 
-    auto generate_24h_value_chart = [](shares::shares shares, shares::query_price_fn query_price, const map<string, double> &day_change) {
+    auto generate_24h_value_chart = [](shares::shares_vec shares, shares::query_price_fn query_price, const map<string, double> &day_change) {
         ::ranges::sort(shares, [&](auto &&l, auto &&r) {
             return day_change.at(l.asset) > day_change.at(r.asset);
         });
@@ -399,11 +399,7 @@ auto main(int argc, char **argv) -> int {
         auto series = new QBarSeries();
 
         auto day_sorted = day_change | std::ranges::to<std::vector<std::pair<std::string, double>>>();
-        auto map_shares = shares |
-            ::ranges::views::transform([](const shares::share &s) {
-                return std::make_pair(s.asset, s);
-            }) |
-            ::ranges::to<std::map<std::string, shares::share>>();
+        auto map_shares = shares::to_map(shares);
 
         ::ranges::sort(day_sorted, [&](auto &&l, auto &&r) { return (l.second * map_shares.at(l.first).share) > (r.second * map_shares.at(r.first).share); });
 
@@ -413,7 +409,7 @@ auto main(int argc, char **argv) -> int {
             const auto valuation = value * s.quantity;
             const auto price_change = valuation - (valuation / (1.00 + (change / 100.0)));
 
-            auto values = new QBarSet(QString::fromStdString(std::format("{}, {:+.2f}% [{:+.2f}{}]", asset, change, price_change, currency)));
+            auto values = new QBarSet(QString::fromStdString(std::format("{} {:+.2f}{}", asset, price_change, currency)));
             *values << (change * map_shares.at(asset).share);
             series->append(values);
         }
@@ -438,7 +434,7 @@ auto main(int argc, char **argv) -> int {
     tabs->addTab(gui::chart::shares(shares, format_percent_shares, 0.00, 2.00), "shares small");
     tabs->addTab(gui::chart::shares(shares, format_prices_shares), "prices");
     tabs->addTab(gui::chart::shares(shares, format_prices_shares, 0.00, 2.00), "prices small");
-    tabs->addTab(gui::chart::bitcoin_altcoin_ratio(shares), "btc/alt ratio");
+    tabs->addTab(gui::chart::bitcoin_altcoin_ratio(shares::to_map(shares)), "btc/alt ratio");
     tabs->addTab(generate_24h_change_chart(), "24h change");
     tabs->addTab(generate_24h_value_chart(shares, query_price_pref, _24h_change), "24h by value");
 
