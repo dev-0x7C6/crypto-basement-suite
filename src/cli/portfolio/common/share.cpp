@@ -9,7 +9,8 @@ auto shares::calculate(const portfolio &portfolio, query_price_fn &&query_price,
         const auto price = query_price(asset);
         if (!price) continue;
 
-        const auto value = balance * price.value_or(0.0);
+        const auto [currency, valution] = price.value();
+        const auto value = balance * valution;
 
         shares.push_back({
             .asset = asset,
