@@ -438,6 +438,7 @@ auto main(int argc, char **argv) -> int {
     tabs->addTab(gui::chart::shares(shares, format_percent_shares, 0.00, 2.00), "shares small");
     tabs->addTab(gui::chart::shares(shares, format_prices_shares), "prices");
     tabs->addTab(gui::chart::shares(shares, format_prices_shares, 0.00, 2.00), "prices small");
+    tabs->addTab(gui::chart::bitcoin_altcoin_ratio(shares), "btc/alt ratio");
     tabs->addTab(generate_24h_change_chart(), "24h change");
     tabs->addTab(generate_24h_value_chart(shares, query_price_pref, _24h_change), "24h by value");
 
