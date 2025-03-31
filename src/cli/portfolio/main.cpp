@@ -10,6 +10,8 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <range/v3/numeric/accumulate.hpp>
+#include <range/v3/view/map.hpp>
 #include <range/v3/view/transform.hpp>
 #include <ranges>
 #include <string>
@@ -281,15 +283,29 @@ auto main(int argc, char **argv) -> int {
         },
         total["btc"]);
 
+    auto get_24h_change = [&](const std::string &asset) {
+        return _24h_change.at(asset);
+    };
+
+    auto calculate_portfolio_change = [](const std::map<std::string, double> &change_provider, const shares::shares_vec &shares) {
+        auto change{0.0};
+
+        for (auto &&share : shares)
+            change += share.share * change_provider.at(share.asset);
+
+        change /= change_provider.size();
+        return change;
+    };
+
     ::ranges::sort(shares, [&](auto &&l, auto &&r) {
-        return _24h_change.at(l.asset) > _24h_change.at(r.asset);
+        return get_24h_change(l.asset) > get_24h_change(r.asset);
     });
 
     const auto preferred_currency_symbol = format::to_symbol(config.preferred_currency);
 
     logger->info("\n+ 24h change (sorted):");
     for (auto &&share : shares) {
-        const auto percent = format::percent(_24h_change.at(share.asset));
+        const auto percent = format::percent(get_24h_change(share.asset));
         const auto value = price(share.asset, config.preferred_currency).value().second;
         const auto fvalue = format::price(value, {});
         logger->info(" {:>30}: {} [{}{}]",
@@ -304,7 +320,7 @@ auto main(int argc, char **argv) -> int {
     logger->info("\n+ shares");
     for (auto &&s : shares) {
         const auto value = price(s.asset, config.preferred_currency).value().second * s.quantity;
-        const auto percent = format::percent(_24h_change.at(s.asset));
+        const auto percent = format::percent(get_24h_change(s.asset));
         const auto share = format::share(s.share, config);
         const auto price = format::price(value, config);
 
@@ -316,14 +332,22 @@ auto main(int argc, char **argv) -> int {
             percent);
     }
 
+    const auto portfolio_24h_change = calculate_portfolio_change(_24h_change, shares);
+
     const auto next_halving_aprox = bitcoin::halving::trivial_next_halving_approximation().front();
     logger->info("\n+ additional:");
     logger->info(" -> next halving approx.: {}", fmt::to_string(next_halving_aprox));
+
+    logger->info("\n+ portfolio change");
+    logger->info(" -> {}", format::percent(portfolio_24h_change, -5, 5));
 
     logger->info("\n+ global market");
     const auto total_market_cap = fmt::format("{:.3f} T", global_market.total_market_cap.at("usd") / short_scales::trillion);
     const auto total_market_cap_change = format::percent(global_market.market_cap_change_percentage_24h_usd, -5, 5);
     logger->info(" -> {} {}", total_market_cap, total_market_cap_change);
+
+    logger->info("\n+ portfolio vs global market");
+    logger->info(" -> {}", format::percent(portfolio_24h_change - global_market.market_cap_change_percentage_24h_usd, -5, 5));
 
     logger->info("\n+ total");
 
@@ -373,7 +397,6 @@ auto main(int argc, char **argv) -> int {
     tabs->addTab(gui::chart::bitcoin_altcoin_ratio(shares::to_map(shares)), "btc/alt ratio");
     tabs->addTab(gui::chart::day_change(shares, _24h_change), "24h change");
     tabs->addTab(gui::chart::day_value(shares, query_price_pref, _24h_change), "24h by value");
-
     tabs->resize(1366, 768);
     tabs->show();
 
