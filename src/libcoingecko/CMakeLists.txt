@@ -14,9 +14,6 @@ target_include_directories(libcoingecko-v3 PRIVATE private/src)
 
 target_link_libraries(libcoingecko-v3 PRIVATE
     thin-curl-requests
-    range-v3::concepts
-    range-v3::meta
-    range-v3::range-v3
     fmt::fmt
     nlohmann_json::nlohmann_json
     CURL::libcurl

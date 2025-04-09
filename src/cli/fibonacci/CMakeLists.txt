@@ -8,9 +8,6 @@ add_executable(cbs-fib-experiments
 
 target_link_libraries(cbs-fib-experiments
     CLI11::CLI11
-    range-v3::meta
-    range-v3::concepts
-    range-v3::range-v3
     spdlog::spdlog
 )
 

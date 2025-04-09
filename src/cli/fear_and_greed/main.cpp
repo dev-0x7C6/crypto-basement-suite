@@ -1,17 +1,13 @@
 #include <nlohmann/json.hpp>
-#include <range/v3/all.hpp>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
-#include <chrono>
-#include <optional>
-#include <sstream>
 #include <vector>
 
 #include <rest/requests.hpp>
 #include <types.hpp>
 
-using namespace ranges;
+using namespace std::ranges;
 using namespace std::chrono_literals;
 using namespace nlohmann;
 

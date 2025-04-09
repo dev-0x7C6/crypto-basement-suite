@@ -12,15 +12,14 @@
 #include <model/tests.hpp>
 #include <types.hpp>
 
-#include <chrono>
-#include <iostream>
-
-#include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-#include <range/v3/all.hpp>
+#include <spdlog/spdlog.h>
 
-using namespace ranges;
+#include <ranges>
+
 using namespace std::chrono_literals;
+using namespace std::ranges;
+using namespace std::ranges::views;
 
 auto main(int argc, char **argv) -> int {
     provider::stub stub{};
@@ -36,7 +35,7 @@ auto main(int argc, char **argv) -> int {
 
     indicator::indicator_results results;
 
-    for (auto &&subrange : stub.range().to_range() | views::stride(60) | views::sliding(25)) {
+    for (auto &&subrange : stub.range().to_range() | stride(60) | slide(25)) {
         results.collect(indicator::type::moving_average, MA_stride_test.compute(subrange, stub));
         results.collect(indicator::type::exponential_moving_average, EMA_stride_test.compute(subrange, stub));
         results.collect(indicator::type::price_velocity, PV_stride_test.compute(subrange, stub));

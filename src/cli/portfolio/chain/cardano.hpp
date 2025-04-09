@@ -2,8 +2,7 @@
 
 #include <cstddef>
 #include <memory>
-#include <range/v3/to_container.hpp>
-#include <range/v3/view/transform.hpp>
+#include <ranges>
 
 #include <libblockfrost/public/includes/libblockfrost/v0/balance.hpp>
 
@@ -66,6 +65,8 @@ auto balance(const shared_logger &logger, const std::string &addr, const configu
 };
 
 auto assets(const shared_logger &logger, const std::string &addr, const configuration &config) -> task<std::vector<std::pair<std::string, double>>> {
+    namespace rng = std::ranges;
+
     return schedule(std::function{[logger, addr, opts{config.blockfrost}]() -> std::vector<std::pair<std::string, double>> {
         log::request::assets::requested(logger, addr);
 
@@ -80,9 +81,9 @@ auto assets(const shared_logger &logger, const std::string &addr, const configur
 
         log::request::assets::success(logger, addr, assets.size());
 
-        auto conversion = assets | ranges::views::transform([](const blockfrost::v0::asset &v) {
+        auto conversion = assets | rng::views::transform([](const blockfrost::v0::asset &v) {
             return std::make_pair(v.unit, v.quantity);
-        }) | ranges::to<std::vector>();
+        }) | rng::to<std::vector>();
 
         for (auto &&[asset, quantity] : conversion)
             logger->info("blockfrost::v0: {}: asset {}, quantity {}", addr, asset, quantity);

@@ -2,18 +2,13 @@
 #include <algorithm>
 #include <cstring>
 #include <fstream>
-#include <optional>
+#include <ranges>
 #include <vector>
-
-#include <range/v3/algorithm/sort.hpp>
-#include <range/v3/view/split.hpp>
 
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
 
 #include <common.hpp>
-
-#include <range/v3/all.hpp>
 
 auto main(int argc, char **argv) -> int {
     CLI::App app("cmap merge tool");
@@ -75,7 +70,7 @@ auto main(int argc, char **argv) -> int {
     std::ofstream file(output_file, std::ios::out | std::ios::binary | std::ios::trunc);
     file.write(reinterpret_cast<const char *>(&h), sizeof(header));
 
-    for (auto s : samples | ranges::views::chunk(div)) {
+    for (auto s : samples | std::ranges::views::chunk(div)) {
         auto compose = make_zeroed_sample();
 
         auto &&first = *s.begin();

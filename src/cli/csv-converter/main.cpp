@@ -2,13 +2,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <format>
 #include <fstream>
 #include <vector>
-
-#include <fmt/format.h>
-
-#include <range/v3/algorithm/sort.hpp>
-#include <range/v3/view/split.hpp>
 
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
@@ -128,7 +124,7 @@ auto read(const CSVRow &row, const csv::scheme &data) -> sample {
 
 auto make_crypto_data_download_scheme(const std::pair<std::string, std::string> &symbol) -> csv::scheme {
     auto volume = [](const std::string &symbol) {
-        return fmt::format("Volume {}", symbol);
+        return std::format("Volume {}", symbol);
     };
 
     return {

@@ -2,12 +2,14 @@
 #include "api.hpp"
 
 #include <format>
-#include <range/v3/all.hpp>
+#include <ranges>
 
 using namespace std::literals;
 using namespace coingecko::v3::simple;
 using namespace nlohmann;
-using namespace ranges;
+
+using namespace std::ranges;
+using namespace std::ranges::views;
 
 namespace coingecko::v3::simple::price {
 
@@ -28,8 +30,8 @@ auto query(const parameters &query, const options &opts) -> std::expected<prices
 
     constexpr auto comma = "%2C"sv;
 
-    const auto ids = query.ids | views::join(comma) | to<std::string>();
-    const auto vs = query.vs_currencies | views::join(comma) | to<std::string>();
+    const auto ids = query.ids | join_with(comma) | to<std::string>();
+    const auto vs = query.vs_currencies | join_with(comma) | to<std::string>();
     const auto params = {
         std::format("ids={}", ids),
         std::format("vs_currencies={}", vs),
@@ -39,7 +41,7 @@ auto query(const parameters &query, const options &opts) -> std::expected<prices
         std::format("include_last_updated_at={}", query.include_last_updated_at),
     };
 
-    const auto url_params = params | views::join('&') | to<std::string>();
+    const auto url_params = params | join_with('&') | to<std::string>();
     const auto json = request(std::format("simple/price?{}", url_params), opts);
     if (!json) return std::unexpected(json.error());
 

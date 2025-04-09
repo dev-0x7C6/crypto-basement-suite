@@ -14,9 +14,6 @@ target_link_libraries(cbs-benchmark
     cbs-indicators
     cbs-model
     benchmark::benchmark
-    range-v3::concepts
-    range-v3::meta
-    range-v3::range-v3
     spdlog::spdlog
 )
 
@@ -24,8 +21,5 @@ target_link_libraries(cbs
     cbs-indicators
     cbs-model
     thin-curl-requests
-    range-v3::meta
-    range-v3::concepts
-    range-v3::range-v3
     spdlog::spdlog
 )

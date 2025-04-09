@@ -2,11 +2,7 @@
 #include <algorithm>
 #include <cstring>
 #include <fstream>
-#include <optional>
 #include <vector>
-
-#include <range/v3/algorithm/sort.hpp>
-#include <range/v3/view/split.hpp>
 
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>

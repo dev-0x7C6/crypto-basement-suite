@@ -2,9 +2,7 @@
 #include "api.hpp"
 
 #include <format>
-#include <range/v3/all.hpp>
 
-using namespace ranges;
 using namespace coingecko::v3::coins;
 
 namespace coingecko::v3::coins::list {

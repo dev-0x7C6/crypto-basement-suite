@@ -7,14 +7,13 @@
 #include <format>
 #include <functional>
 #include <map>
-#include <ranges>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace format {
 
-auto share(double value, const configuration &cfg) noexcept -> std::string {
+inline auto share(double value, const configuration &cfg) noexcept -> std::string {
     if (cfg.hide.shares)
         return "---%";
 
@@ -70,7 +69,7 @@ constexpr auto to_subscript(const std::string &in) -> std::string {
     return ret;
 }
 
-auto price(double value, const configuration &cfg) noexcept -> std::string {
+inline auto price(double value, const configuration &cfg) noexcept -> std::string {
     if (cfg.hide.balances)
         return "---";
 
@@ -85,7 +84,7 @@ auto price(double value, const configuration &cfg) noexcept -> std::string {
     return std::format("{:.2f}", value);
 }
 
-auto to_symbol(const std::string &in) -> std::string {
+inline auto to_symbol(const std::string &in) -> std::string {
     static const std::map<std::string, std::string> symbols{
         {"btc", "₿"}, //
         {"eur", "€"}, //
@@ -99,7 +98,7 @@ auto to_symbol(const std::string &in) -> std::string {
     return in;
 };
 
-auto magnitude_ranks() {
+inline auto magnitude_ranks() {
     using rank = std::pair<int, std::string>;
 
     static std::vector<rank> ret{
@@ -111,7 +110,7 @@ auto magnitude_ranks() {
     return ret;
 }
 
-auto formatted_price(double value, const configuration &cfg, const bool hide_ranks = false, const int decimal = 2) noexcept -> std::string {
+inline auto formatted_price(double value, const configuration &cfg, const bool hide_ranks = false, const int decimal = 2) noexcept -> std::string {
     if (cfg.hide.balances)
         return "---";
 
@@ -138,7 +137,7 @@ auto formatted_price(double value, const configuration &cfg, const bool hide_ran
     return std::format("{:.{}f}", value, decimal);
 }
 
-auto percent(double value, double min = -10.0, double max = 10.0) {
+inline auto percent(double value, double min = -10.0, double max = 10.0) {
     const auto c = std::clamp(value, min, max);
     auto x = hsl_to_rgb({120.0 * (c - min) / (max - min), 1.0, 1.0});
     return ansi_colorize(std::format("{:+.2f}%", value), x.r, x.g, x.b);

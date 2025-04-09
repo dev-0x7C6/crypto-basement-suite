@@ -2,6 +2,9 @@
 
 #include "indicators.hpp"
 
+#include <bits/ranges_algo.h>
+#include <ranges>
+
 namespace indicator {
 
 struct moving_average {
@@ -17,8 +20,8 @@ struct moving_average {
     // in order to enforce some awareness on caller side
     //
 
-    constexpr auto compute(::ranges::forward_range auto &&view, provider::model auto &&model) noexcept -> types::indicator_value {
-        const auto sum = ::ranges::accumulate(view_on_price(view, model), 0.0f);
+    constexpr auto compute(std::ranges::forward_range auto &&view, provider::model auto &&model) noexcept -> types::indicator_value {
+        const auto sum = std::ranges::fold_left(view_on_price(view, model), 0.0f, std::plus());
         return {sum / size(view)};
     }
 };

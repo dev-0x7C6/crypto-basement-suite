@@ -2,9 +2,6 @@
 
 #include "indicators.hpp"
 
-#include <ranges>
-#include <iostream>
-
 namespace indicator {
 //https://www.investopedia.com/terms/p/pricerateofchange.asp
 // additional parameters:
@@ -16,12 +13,12 @@ struct relative_strength_index {
     static constexpr auto algorithm_type = type::relative_strength_index;
 
     //nature of the RSI demands one more data point than the window size! for example for RSI 20 you will need 21 data points
-    auto compute(::ranges::range auto &&view, provider::model auto &&model) noexcept -> types::indicator_value {
+    auto compute(std::ranges::range auto &&view, provider::model auto &&model) noexcept -> types::indicator_value {
         float ratio_of_change = 0;
         std::optional<float> previous_price;
         float previous_gains_sum = 0;
         float previous_losses_sum = 0;
-        for (auto price : view_on_price(view, model) | ranges::views::reverse) {
+        for (auto price : view_on_price(view, model) | std::ranges::views::reverse) {
             if (!previous_price.has_value()) {
                 previous_price = price;
             } 

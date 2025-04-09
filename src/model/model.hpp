@@ -1,13 +1,10 @@
 #pragma once
 
-#include <chrono>
 #include <cmath>
-#include <compare>
-#include <cstdint>
 #include <functional>
+#include <ranges>
 
 #include "types.hpp"
-#include <range/v3/all.hpp>
 
 namespace provider {
 
@@ -18,8 +15,8 @@ concept model = requires(type object) {
     { object.range_changed(std::function<void()>()) } -> std::same_as<void>;
 };
 
-constexpr auto view_on_price(const ::ranges::range auto &view, const model auto &model) {
-    return view | ranges::views::transform([&model](auto &&val) -> float { return model.value(val).price; });
+constexpr auto view_on_price(const std::ranges::range auto &view, const model auto &model) {
+    return view | std::ranges::views::transform([&model](auto &&val) -> float { return model.value(val).price; });
 }
 
 } // namespace provider

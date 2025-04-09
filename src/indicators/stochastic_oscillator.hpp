@@ -3,7 +3,6 @@
 #include "indicators.hpp"
 #include <limits>
 #include <ranges>
-#include <iostream>
 
 namespace indicator {
 // https://www.investopedia.com/terms/s/stochasticoscillator.asp
@@ -12,11 +11,11 @@ struct stochastic_oscillator {
 
     static constexpr auto algorithm_type = type::stochastic_oscillator;
 
-    auto compute(::ranges::range auto &&view, provider::model auto &&model) noexcept -> types::indicator_value {
+    auto compute(std::ranges::range auto &&view, provider::model auto &&model) noexcept -> types::indicator_value {
         auto view_prices = view_on_price(view, model);
         float period_maximum_price = 0;
         float period_minimum_price = std::numeric_limits<float>::max();
-        for (auto price : view_prices | ranges::views::reverse) {
+        for (auto price : view_prices | std::ranges::views::reverse) {
             if(period_maximum_price < price)
                 period_maximum_price = price;
             if(period_minimum_price > price)

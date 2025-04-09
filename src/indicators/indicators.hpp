@@ -16,7 +16,7 @@ constexpr auto is_empty(container_with_size auto x) noexcept {
 }
 
 template <typename return_type = std::size_t>
-constexpr auto size(::ranges::range auto v) noexcept {
+constexpr auto size(std::ranges::range auto v) noexcept {
     return static_cast<return_type>(static_cast<std::size_t>(v.size()));
 }
 

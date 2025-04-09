@@ -1,6 +1,5 @@
 #include <benchmark/benchmark.h>
 #include <model/stub.hpp>
-#include <range/v3/all.hpp>
 #include <types.hpp>
 
 #include <indicators/exponential_moving_average.hpp>
@@ -8,7 +7,8 @@
 #include <indicators/price_velocity.hpp>
 #include <indicators/rate_of_change.hpp>
 
-using namespace ranges;
+using namespace std::ranges;
+using namespace std::ranges::views;
 
 namespace {
 
@@ -19,7 +19,7 @@ void indicator_benchmark(benchmark::State &state) {
 
     while (state.KeepRunning()) {
         auto ret = 0.0;
-        for (auto &&subrange : stub.range().to_range() | views::stride(60) | views::sliding(25)) {
+        for (auto &&subrange : stub.range().to_range() | stride(60) | slide(25)) {
             ret += test_object.compute(subrange, stub).value;
         }
 

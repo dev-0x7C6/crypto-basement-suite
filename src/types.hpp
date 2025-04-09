@@ -3,8 +3,7 @@
 #include <chrono>
 #include <cstdint>
 #include <optional>
-#include <string>
-#include <range/v3/all.hpp>
+#include <ranges>
 
 using i32 = std::int32_t;
 using u32 = std::uint64_t;
@@ -44,7 +43,7 @@ struct time_range {
     time_point end{};
 
     constexpr auto to_range() {
-        return ::ranges::iota_view{begin.point, end.point};
+        return std::ranges::iota_view{begin.point, end.point};
     };
 };
 

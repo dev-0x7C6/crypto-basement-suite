@@ -2,7 +2,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
-#include <fmt/format.h>
+#include <print>
 
 namespace fibonacci {
 
@@ -66,28 +66,28 @@ auto main(int argc, char **argv) -> int {
     auto table = fibonacci::to_array<128>();
 
     for (auto i = 0; i < 40; ++i) {
-        fmt::print("fibonacci({}) = {}\n", i, table[i]);
+        std::print("fibonacci({}) = {}\n", i, table[i]);
         if (i > 0)
-            fmt::print("    ratio({}) = {}\n", i, table[i] / table[i - 1]);
-        fmt::print("\n");
+            std::print("    ratio({}) = {}\n", i, table[i] / table[i - 1]);
+        std::print("\n");
     }
 
-    fmt::print("golden ratio = {}\n", golden_ratio<double>());
-    fmt::print("golden ratio inverted = {}\n", golden_ratio_inversed());
-    fmt::print("\n");
+    std::print("golden ratio = {}\n", golden_ratio<double>());
+    std::print("golden ratio inverted = {}\n", golden_ratio_inversed());
+    std::print("\n");
 
-    fmt::print("fibonacci::fib_6854 = {}\n", fibonacci::fib_6854);
-    fmt::print("fibonacci::fib_4236 = {}\n", fibonacci::fib_4236);
-    fmt::print("fibonacci::fib_3618 = {}\n", fibonacci::fib_3618);
-    fmt::print("fibonacci::fib_2618 = {}\n", fibonacci::fib_2618);
-    fmt::print("fibonacci::fib_1618 = {}\n", fibonacci::fib_1618);
-    fmt::print("fibonacci::fib_1000 = {}\n", fibonacci::fib_1000);
-    fmt::print("fibonacci::fib_0786 = {}\n", fibonacci::fib_0786);
-    fmt::print("fibonacci::fib_0618 = {}\n", fibonacci::fib_0618);
-    fmt::print("fibonacci::fib_0500 = {}\n", fibonacci::fib_0500);
-    fmt::print("fibonacci::fib_0381 = {}\n", fibonacci::fib_0381);
-    fmt::print("fibonacci::fib_0236 = {}\n", fibonacci::fib_0236);
-    fmt::print("fibonacci::fib_0145 = {}\n", fibonacci::fib_0145);
+    std::print("fibonacci::fib_6854 = {}\n", fibonacci::fib_6854);
+    std::print("fibonacci::fib_4236 = {}\n", fibonacci::fib_4236);
+    std::print("fibonacci::fib_3618 = {}\n", fibonacci::fib_3618);
+    std::print("fibonacci::fib_2618 = {}\n", fibonacci::fib_2618);
+    std::print("fibonacci::fib_1618 = {}\n", fibonacci::fib_1618);
+    std::print("fibonacci::fib_1000 = {}\n", fibonacci::fib_1000);
+    std::print("fibonacci::fib_0786 = {}\n", fibonacci::fib_0786);
+    std::print("fibonacci::fib_0618 = {}\n", fibonacci::fib_0618);
+    std::print("fibonacci::fib_0500 = {}\n", fibonacci::fib_0500);
+    std::print("fibonacci::fib_0381 = {}\n", fibonacci::fib_0381);
+    std::print("fibonacci::fib_0236 = {}\n", fibonacci::fib_0236);
+    std::print("fibonacci::fib_0145 = {}\n", fibonacci::fib_0145);
 
     return 0;
 }

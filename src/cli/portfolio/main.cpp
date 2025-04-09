@@ -10,9 +10,6 @@
 #include <map>
 #include <memory>
 #include <optional>
-#include <range/v3/numeric/accumulate.hpp>
-#include <range/v3/view/map.hpp>
-#include <range/v3/view/transform.hpp>
 #include <ranges>
 #include <string>
 #include <system_error>
@@ -22,7 +19,6 @@
 
 #include <CLI/CLI.hpp>
 #include <nlohmann/json.hpp>
-#include <range/v3/all.hpp>
 #include <spdlog/spdlog.h>
 
 #include <csv.hpp>
@@ -39,31 +35,17 @@
 #include "common/short_scales.hpp"
 #include "extensions/btc-halving.hpp"
 #include "extensions/cardano-registry-scanner.hpp"
+#include "gui/gui.hpp"
 #include "helpers/formatter.hpp"
 #include "helpers/threading.hpp"
 #include "readers/balances.hpp"
 #include "readers/wallets.hpp"
-
-#include <QApplication>
-#include <QGroupBox>
-#include <QtCharts/QBarSeries>
-#include <QtCharts/QBarSet>
-#include <QtCharts/QPieLegendMarker>
-#include <QtCharts/QPieSlice>
-#include <QtCharts/QtCharts>
-
-#include "gui/share-chart.hpp"
 
 using namespace csv;
 using namespace coingecko::v3;
 using namespace std;
 using namespace std::chrono_literals;
 using namespace nlohmann;
-
-auto as_btc(const map<string, struct simple::price::price> &prices) -> optional<double> {
-    if (!prices.contains("btc")) return {};
-    return prices.at("btc").value;
-}
 
 template <typename Callable, typename... Ts>
 auto repeat(const shared_ptr<spdlog::logger> &logger, Callable &callable, Ts &&...values) {
@@ -184,11 +166,13 @@ auto main(int argc, char **argv) -> int {
         }
     }
 
+    namespace rng = std::ranges;
+
     auto request_price = schedule(function{[logger, balances, &config]() {
         logger->info("coingecko::v3: requesting prices");
         return repeat(logger, simple::price::query, //
             simple::price::parameters{
-                .ids = balances | ::ranges::views::keys | ::ranges::to<std::set<string>>(),
+                .ids = balances | rng::views::keys | rng::to<std::set<string>>(),
                 .vs_currencies = {"usd", "btc", "pln", "eur", config.preferred_currency},
             },
             config.coingecko);
@@ -277,11 +261,11 @@ auto main(int argc, char **argv) -> int {
         return {};
     };
 
-    auto shares = shares::calculate(
-        portfolio, [&](const string &asset) -> optional<currency_quantity> {
-            return price(asset, "btc");
-        },
-        total["btc"]);
+    auto price_in_btc = [&price](const string &asset) {
+        return price(asset, "btc");
+    };
+
+    auto shares = shares::calculate(portfolio, price_in_btc, total["btc"]).value();
 
     auto get_24h_change = [&](const std::string &asset) {
         return _24h_change.at(asset);
@@ -297,7 +281,7 @@ auto main(int argc, char **argv) -> int {
         return change;
     };
 
-    ::ranges::sort(shares, [&](auto &&l, auto &&r) {
+    rng::sort(shares, [&](auto &&l, auto &&r) {
         return get_24h_change(l.asset) > get_24h_change(r.asset);
     });
 
@@ -315,7 +299,7 @@ auto main(int argc, char **argv) -> int {
             preferred_currency_symbol);
     }
 
-    ::ranges::sort(shares, std::greater<shares::share>());
+    rng::sort(shares, std::greater<shares::share>());
 
     logger->info("\n+ shares");
     for (auto &&s : shares) {
@@ -355,14 +339,14 @@ auto main(int argc, char **argv) -> int {
     std::map<std::string, int> preferred_decimal_count{{"btc", 8}};
 
     std::vector<std::pair<std::string, double>> total_sorted;
-    auto total_vec = total | ::ranges::to<std::vector<std::pair<std::string, double>>>();
+    auto total_vec = total | rng::to<std::vector<std::pair<std::string, double>>>();
 
     const static std::map<std::string, int> sort_rank{
         {"btc", 2},
         {config.preferred_currency, 1},
     };
 
-    ::ranges::sort(total_vec, [&](auto &&lhs, auto &&rhs) {
+    rng::sort(total_vec, [&](auto &&lhs, auto &&rhs) {
         return value_or(sort_rank, lhs.first, 0) > value_or(sort_rank, rhs.first, 0);
     });
 
@@ -374,31 +358,5 @@ auto main(int argc, char **argv) -> int {
         logger->info(" -> {} {}", price, symbol);
     }
 
-    QApplication app(argc, argv);
-    auto tabs = new QTabWidget();
-
-    auto format_percent_shares = [](const shares::share &share) -> std::string {
-        return std::format("{} {:.2f}%", share.asset, share.share);
-    };
-
-    auto format_prices_shares = [&](const shares::share &share) -> std::string {
-        const auto value = price(share.asset, config.preferred_currency).value().second * share.quantity;
-        return std::format("{} {:.0f}{}", share.asset, value, preferred_currency_symbol);
-    };
-
-    auto query_price_pref = [&](const string &asset) -> optional<currency_quantity> {
-        return price(asset, config.preferred_currency).value();
-    };
-
-    tabs->addTab(gui::chart::shares(shares, format_percent_shares), "shares");
-    tabs->addTab(gui::chart::shares(shares, format_percent_shares, 0.00, 2.00), "shares small");
-    tabs->addTab(gui::chart::shares(shares, format_prices_shares), "prices");
-    tabs->addTab(gui::chart::shares(shares, format_prices_shares, 0.00, 2.00), "prices small");
-    tabs->addTab(gui::chart::bitcoin_altcoin_ratio(shares::to_map(shares)), "btc/alt ratio");
-    tabs->addTab(gui::chart::day_change(shares, _24h_change), "24h change");
-    tabs->addTab(gui::chart::day_value(shares, query_price_pref, _24h_change), "24h by value");
-    tabs->resize(1366, 768);
-    tabs->show();
-
-    return app.exec();
+    return show_gui_charts(argc, argv, config, shares, summary);
 }

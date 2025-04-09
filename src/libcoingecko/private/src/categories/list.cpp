@@ -1,10 +1,6 @@
 #include "libcoingecko/v3/categories/list.hpp"
 #include "api.hpp"
 
-#include <fmt/format.h>
-#include <range/v3/all.hpp>
-
-using namespace ranges;
 using namespace coingecko::v3::coins::categories;
 
 namespace coingecko::v3::coins::categories {
