@@ -40,9 +40,3 @@ BENCHMARK(ma_compute);
 BENCHMARK(ema_compute);
 BENCHMARK(pv_compute);
 BENCHMARK(roc_compute);
-
-auto main(int argc, char **argv) -> int {
-    ::benchmark::Initialize(&argc, argv);
-    ::benchmark::RunSpecifiedBenchmarks();
-    return 0;
-}

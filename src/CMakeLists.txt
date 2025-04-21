@@ -14,6 +14,7 @@ target_link_libraries(cbs-benchmark
     cbs-indicators
     cbs-model
     benchmark::benchmark
+    benchmark::benchmark_main
     spdlog::spdlog
 )
 
