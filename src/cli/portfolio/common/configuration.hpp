@@ -23,4 +23,6 @@ struct configuration {
         bool balances{false};
         bool shares{false};
     } hide;
+
+    bool show_gui{false};
 };

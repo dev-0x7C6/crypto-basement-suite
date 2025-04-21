@@ -358,5 +358,8 @@ auto main(int argc, char **argv) -> int {
         logger->info(" -> {} {}", price, symbol);
     }
 
-    return show_gui_charts(argc, argv, config, shares, summary);
+    if (config.show_gui)
+        return show_gui_charts(argc, argv, config, shares, summary);
+
+    return 0;
 }

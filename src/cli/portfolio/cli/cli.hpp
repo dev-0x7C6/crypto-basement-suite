@@ -11,6 +11,7 @@ auto parse(int argc, char **argv) -> std::expected<configuration, int> {
 
     configuration config;
 
+    app.add_flag("-g,--gui", config.show_gui);
     app.add_option("-i,--input", config.balances, "csv format <coin, quantity>")->required()->allow_extra_args()->check(CLI::ExistingFile);
     app.add_option("-t,--track-wallets", config.track_wallets, "csv format <coin, address>");
     app.add_option("-p,--preferred-currency", config.preferred_currency, "show value in currency");
