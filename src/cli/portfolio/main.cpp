@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <chrono>
-#include <cmath>
 #include <cstdint>
 #include <expected>
 #include <filesystem>
@@ -29,6 +28,7 @@
 #include <libcoingecko/v3/global/global.hpp>
 #include <libcoingecko/v3/simple/price.hpp>
 
+#include "chain/bitcoin.hpp"
 #include "chain/cardano.hpp"
 #include "cli/cli.hpp"
 #include "common/share.hpp"
@@ -40,6 +40,7 @@
 #include "helpers/threading.hpp"
 #include "readers/balances.hpp"
 #include "readers/wallets.hpp"
+#include <rest/requests.hpp>
 
 using namespace csv;
 using namespace coingecko::v3;
@@ -128,11 +129,14 @@ auto main(int argc, char **argv) -> int {
                 contract_to_symbol[coingecko_contract_corrections.at(contract)] = asset.id;
         }
 
-    map<string, chain::callback> wallet_balances;
-    map<string, chain::callback> wallet_assets;
+    const map<string, chain::callback> wallet_balances{
+        {"cardano", chain::cardano::balance},
+        {"bitcoin", chain::bitcoin::balance},
+    };
 
-    wallet_balances["cardano"] = chain::cardano::balance;
-    wallet_assets["cardano"] = chain::cardano::assets;
+    const map<string, chain::callback> wallet_assets{
+        {"cardano", chain::cardano::assets},
+    };
 
     for (auto &&[blockchain, address] : wallets) {
         if (wallet_balances.contains(blockchain))

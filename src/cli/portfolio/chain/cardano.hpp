@@ -94,5 +94,5 @@ auto assets(const shared_logger &logger, const std::string &addr, const configur
 } // namespace chain::cardano
 
 namespace chain {
-using callback = std::function<decltype(chain::cardano::balance)>;
+using callback = std::function<task<std::vector<std::pair<std::string, double>>>(const shared_logger &, const std::string &, const configuration &)>;
 }
