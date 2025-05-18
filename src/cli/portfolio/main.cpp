@@ -8,6 +8,7 @@
 #include <iterator>
 #include <map>
 #include <memory>
+#include <numeric>
 #include <optional>
 #include <ranges>
 #include <string>
@@ -92,6 +93,19 @@ auto value_or(const std::map<K, V> &in, const K &key, V &&v) {
     return std::forward<V>(v);
 }
 
+auto average(std::ranges::range auto rng) {
+    const auto count = std::ranges::distance(rng);
+    const auto value = std::accumulate(std::begin(rng), std::end(rng), 0);
+    return value / count;
+}
+
+namespace symbol {
+constexpr auto eur = "eur";
+constexpr auto pln = "pln";
+constexpr auto usd = "usd";
+constexpr auto btc = "btc";
+} // namespace symbol
+
 auto main(int argc, char **argv) -> int {
     auto logger = spdlog::stdout_color_mt("portfolio");
     logger->set_pattern("%v");
@@ -116,10 +130,10 @@ auto main(int argc, char **argv) -> int {
     const auto assets = repeat(logger, coins::list::query, coins::list::settings{}, config.coingecko);
 
     std::map<std::string, std::string> coingecko_contract_corrections{
-        {"29d222ce763455e3d7a09a665ce554f00ac89d2e99a1a83d267170c6", "29d222ce763455e3d7a09a665ce554f00ac89d2e99a1a83d267170c64d494e"},
-        {"1d7f33bd23d85e1a25d87d86fac4f199c3197a2f7afeb662a0f34e1e", "1d7f33bd23d85e1a25d87d86fac4f199c3197a2f7afeb662a0f34e1e776f726c646d6f62696c65746f6b656e"},
-        {"e5a42a1a1d3d1da71b0449663c32798725888d2eb0843c4dabeca05a", "e5a42a1a1d3d1da71b0449663c32798725888d2eb0843c4dabeca05a576f726c644d6f62696c65546f6b656e58"},
-        {"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235", "a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235484f534b59"},
+        // {"29d222ce763455e3d7a09a665ce554f00ac89d2e99a1a83d267170c6", "29d222ce763455e3d7a09a665ce554f00ac89d2e99a1a83d267170c64d494e"},
+        // {"1d7f33bd23d85e1a25d87d86fac4f199c3197a2f7afeb662a0f34e1e", "1d7f33bd23d85e1a25d87d86fac4f199c3197a2f7afeb662a0f34e1e776f726c646d6f62696c65746f6b656e"},
+        // {"e5a42a1a1d3d1da71b0449663c32798725888d2eb0843c4dabeca05a", "e5a42a1a1d3d1da71b0449663c32798725888d2eb0843c4dabeca05a576f726c644d6f62696c65546f6b656e58"},
+        // {"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235", "a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235484f534b59"},
     };
 
     for (auto &&asset : assets.value())
@@ -171,13 +185,14 @@ auto main(int argc, char **argv) -> int {
     }
 
     namespace rng = std::ranges;
+    namespace view = std::ranges::views;
 
     auto request_price = schedule(function{[logger, balances, &config]() {
         logger->info("coingecko::v3: requesting prices");
         return repeat(logger, simple::price::query, //
             simple::price::parameters{
-                .ids = balances | rng::views::keys | rng::to<std::set<string>>(),
-                .vs_currencies = {"usd", "btc", "pln", "eur", config.preferred_currency},
+                .ids = balances | view::keys | rng::to<std::set<string>>(),
+                .vs_currencies = {symbol::usd, symbol::btc, symbol::eur, symbol::pln, config.preferred_currency},
             },
             config.coingecko);
     }});
@@ -266,23 +281,28 @@ auto main(int argc, char **argv) -> int {
     };
 
     auto price_in_btc = [&price](const string &asset) {
-        return price(asset, "btc");
+        return price(asset, symbol::btc);
     };
 
-    auto shares = shares::calculate(portfolio, price_in_btc, total["btc"]).value();
+    auto shares = shares::calculate(portfolio, price_in_btc, total[symbol::btc]).value();
 
     auto get_24h_change = [&](const std::string &asset) {
         return _24h_change.at(asset);
     };
 
-    auto calculate_portfolio_change = [](const std::map<std::string, double> &change_provider, const shares::shares_vec &shares) {
+    auto calculate_portfolio_change = [](const std::map<std::string, double> &change_provider, const shares::shares_vec &shares, std::set<std::string> filter = {}) {
         auto change{0.0};
+        auto count{0};
 
-        for (auto &&share : shares)
+        for (auto &&share : shares) {
+            if (filter.contains(share.asset))
+                continue;
+
             change += share.share * change_provider.at(share.asset);
+            count++;
+        }
 
-        change /= change_provider.size();
-        return change;
+        return change / count;
     };
 
     rng::sort(shares, [&](auto &&l, auto &&r) {
@@ -320,33 +340,45 @@ auto main(int argc, char **argv) -> int {
             percent);
     }
 
-    const auto portfolio_24h_change = calculate_portfolio_change(_24h_change, shares);
-
+    const auto bitcoin_24h_change = _24h_change["bitcoin"];
     const auto next_halving_aprox = bitcoin::halving::trivial_next_halving_approximation().front();
-    logger->info("\n+ additional:");
-    logger->info(" -> next halving approx.: {}", fmt::to_string(next_halving_aprox));
+    const auto portfolio_24h_change = calculate_portfolio_change(_24h_change, shares);
+    const auto portfolio_24h_change_altcoins = calculate_portfolio_change(_24h_change, shares, {"bitcoin"});
 
-    logger->info("\n+ portfolio change");
-    logger->info(" -> {}", format::percent(portfolio_24h_change, -5, 5));
+    const auto fmt_next_halving = fmt::to_string(next_halving_aprox);
+    const auto fmt_portfolio_24h_altcoin_gains = format::percent(portfolio_24h_change_altcoins - bitcoin_24h_change, -15, 15);
+    const auto fmt_portfolio_24h_bitcoin_gains = format::percent(bitcoin_24h_change - portfolio_24h_change_altcoins, -15, 15);
+    const auto fmt_portfolio_24h_change = format::percent(portfolio_24h_change, -5, 5);
+    const auto fmt_portfolio_24h_gain_vs_total_tmk = format::percent(portfolio_24h_change - global_market.market_cap_change_percentage_24h_usd, -5, 5);
+    const auto fmt_total_market_cap = fmt::format("{:.3f} T", global_market.total_market_cap.at(symbol::usd) / short_scales::trillion);
+    const auto fmt_total_market_cap_24h_change = format::percent(global_market.market_cap_change_percentage_24h_usd, -5, 5);
+
+    logger->info("\n+ additional:");
+    logger->info(" -> next halving approx.: {}", fmt_next_halving);
+
+    logger->info("\n+ 24h gains");
+    logger->info(" -> altcoins vs bitcoin {}", fmt_portfolio_24h_altcoin_gains);
+    logger->info(" -> bitcoin vs altcoins {}", fmt_portfolio_24h_bitcoin_gains);
+
+    logger->info("\n+ 24h change");
+    logger->info(" -> portfolio change {}", fmt_portfolio_24h_change);
 
     logger->info("\n+ global market");
-    const auto total_market_cap = fmt::format("{:.3f} T", global_market.total_market_cap.at("usd") / short_scales::trillion);
-    const auto total_market_cap_change = format::percent(global_market.market_cap_change_percentage_24h_usd, -5, 5);
-    logger->info(" -> {} {}", total_market_cap, total_market_cap_change);
+    logger->info(" -> {} {}", fmt_total_market_cap, fmt_total_market_cap_24h_change);
 
     logger->info("\n+ portfolio vs global market");
-    logger->info(" -> {}", format::percent(portfolio_24h_change - global_market.market_cap_change_percentage_24h_usd, -5, 5));
+    logger->info(" -> {}", fmt_portfolio_24h_gain_vs_total_tmk);
 
     logger->info("\n+ total");
 
-    std::set<std::string> hide_ranks{"btc"};
-    std::map<std::string, int> preferred_decimal_count{{"btc", 8}};
+    std::set<std::string> hide_ranks{symbol::btc};
+    std::map<std::string, int> preferred_decimal_count{{symbol::btc, 8}};
 
     std::vector<std::pair<std::string, double>> total_sorted;
     auto total_vec = total | rng::to<std::vector<std::pair<std::string, double>>>();
 
     const static std::map<std::string, int> sort_rank{
-        {"btc", 2},
+        {symbol::btc, 2},
         {config.preferred_currency, 1},
     };
 
