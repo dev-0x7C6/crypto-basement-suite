@@ -2,6 +2,7 @@
 #include "cardano-registry-scanner.hpp"
 
 #include <fstream>
+#include <string>
 
 auto read_file_to_string(const std::filesystem::path &filepath) -> std::optional<std::string> {
     std::ifstream file(filepath, std::ios::in | std::ios::binary);
@@ -32,12 +33,19 @@ auto scan(const std::filesystem::path &path) -> token::database {
 
         const auto data = nlohmann::json::parse(content.value(), nullptr, false);
 
-        try {
+        if (!data.contains("subject")) continue;
+        auto contract = data.at("subject").get<std::string>();
 
-            db[entry.path().stem().string()] = token::details{
-                .divisor = std::pow(10, data.at("decimals").at("value").get<int>())};
+        token::details token{};
+
+        try {
+            token.divisor = std::pow(10, data.at("decimals").at("value").get<int>());
         } catch (const nlohmann::json::out_of_range &e) {
         }
+
+        db[contract] = token;
+        contract.resize(56);
+        db[contract] = token;
     }
 
     return db;
