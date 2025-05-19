@@ -5,6 +5,7 @@
 
 #include <libcoingecko/v3/options.hpp>
 #include <nlohmann/json.hpp>
+#include <optional>
 
 template <typename T>
 auto get(const nlohmann::json &j, const std::string &key) -> std::optional<T> {
@@ -16,6 +17,16 @@ auto get(const nlohmann::json &j, const std::string &key) -> std::optional<T> {
 
 template <typename T>
 auto set(const nlohmann::json &j, const std::string &key, T &out) -> void {
+    out = get<T>(j, key).value_or(T{});
+}
+
+template <typename T>
+auto set(const nlohmann::json &j, const std::string &key, std::optional<T> &out) -> void {
+    if (!j.contains(key) || j[key].is_null()) {
+        out = std::optional<T>{};
+        return;
+    }
+
     out = get<T>(j, key).value_or(T{});
 }
 

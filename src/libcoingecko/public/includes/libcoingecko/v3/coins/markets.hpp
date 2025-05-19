@@ -3,10 +3,13 @@
 #include <libcoingecko/v3/options.hpp>
 
 #include <cstdint>
+#include <map>
+#include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
-namespace coingecko::v3::coins::markets {
+namespace coingecko::v3::coins {
 
 enum class order {
     undefined,
@@ -18,9 +21,9 @@ enum class order {
     id_desc
 };
 
-struct settings {
+struct markets_query {
     std::string vs_currency;
-    std::vector<std::string> ids;
+    std::set<std::string> ids;
     std::string category;
     std::string order;
     int per_page{100};
@@ -30,7 +33,7 @@ struct settings {
     std::vector<std::string> locale;
 };
 
-struct info {
+struct market_data {
     std::string id;
     std::string symbol;
     std::string name;
@@ -45,7 +48,25 @@ struct info {
     double price_change_24h{};
     double price_change_percentage_24h{};
     double market_cap_change_24h{};
+    double market_cap_change_percentage_24h{};
+    std::optional<double> circulating_supply{};
+    std::optional<double> total_supply{};
+    std::optional<double> max_supply{};
+    double ath{};
+    double ath_change_percentage{};
+    std::string ath_date;
+    double atl{};
+    double atl_change_percentage{};
+    std::optional<double> roi;
+    std::string last_updated;
+
+    // additional
+    double supply_ratio{};
 };
 
-auto markets(settings query = {}, const options &opts = {}) -> std::expected<info, error>;
-} // namespace coingecko::v3::coins::markets
+auto markets(const markets_query &query = {}, const options &opts = {}) -> std::expected<std::vector<market_data>, error>;
+
+} // namespace coingecko::v3::coins
+
+auto to_pairs(const std::vector<coingecko::v3::coins::market_data> &) -> std::vector<std::pair<std::string, coingecko::v3::coins::market_data>>;
+auto to_map(const std::vector<coingecko::v3::coins::market_data> &) -> std::map<std::string, coingecko::v3::coins::market_data>;

@@ -64,8 +64,10 @@ auto request(const std::string &url, const ::curl::vec_headers &headers) noexcep
 }
 
 auto request(const std::string &url, const ::curl::map_headers &headers) noexcept -> ::curl::content {
+    using namespace std::ranges;
+    using namespace std::ranges::views;
     return request(url,
-        headers | std::ranges::views::transform([](auto &&pair) { return std::format("{}: {}", pair.first, pair.second); }) | std::ranges::to<std::vector<std::string>>());
+        headers | transform([](auto &&pair) { return std::format("{}: {}", pair.first, pair.second); }) | to<std::vector<std::string>>());
 }
 
 auto request(const std::string &url) noexcept -> ::curl::content {

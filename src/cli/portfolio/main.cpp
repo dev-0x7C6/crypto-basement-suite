@@ -39,6 +39,7 @@
 #include "gui/gui.hpp"
 #include "helpers/formatter.hpp"
 #include "helpers/threading.hpp"
+#include "libcoingecko/v3/coins/markets.hpp"
 #include "readers/balances.hpp"
 #include "readers/wallets.hpp"
 #include <rest/requests.hpp>
@@ -129,20 +130,6 @@ auto main(int argc, char **argv) -> int {
 
     const auto assets = repeat(logger, coins::list::query, coins::list::settings{}, config.coingecko);
 
-    std::map<std::string, std::string> coingecko_contract_corrections{
-        // {"29d222ce763455e3d7a09a665ce554f00ac89d2e99a1a83d267170c6", "29d222ce763455e3d7a09a665ce554f00ac89d2e99a1a83d267170c64d494e"},
-        // {"1d7f33bd23d85e1a25d87d86fac4f199c3197a2f7afeb662a0f34e1e", "1d7f33bd23d85e1a25d87d86fac4f199c3197a2f7afeb662a0f34e1e776f726c646d6f62696c65746f6b656e"},
-        // {"e5a42a1a1d3d1da71b0449663c32798725888d2eb0843c4dabeca05a", "e5a42a1a1d3d1da71b0449663c32798725888d2eb0843c4dabeca05a576f726c644d6f62696c65546f6b656e58"},
-        // {"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235", "a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235484f534b59"},
-    };
-
-    for (auto &&asset : assets.value())
-        for (auto &&[_, contract] : asset.platforms) {
-            contract_to_symbol[contract] = asset.id;
-            if (coingecko_contract_corrections.contains(contract))
-                contract_to_symbol[coingecko_contract_corrections.at(contract)] = asset.id;
-        }
-
     const map<string, chain::callback> wallet_balances{
         {"cardano", chain::cardano::balance},
         {"bitcoin", chain::bitcoin::balance},
@@ -197,18 +184,29 @@ auto main(int argc, char **argv) -> int {
             config.coingecko);
     }});
 
+    auto request_markets_data = schedule(function{[logger, balances, &config]() {
+        logger->info("coingecko::v3: requesting market data");
+        return repeat(logger, coins::markets, //
+            coins::markets_query{
+                .vs_currency = symbol::btc,
+                .ids = balances | view::keys | rng::to<std::set<string>>(),
+            },
+            config.coingecko);
+    }});
+
     auto request_global_stats = schedule(function{[logger, &config]() {
         logger->info("coingecko::v3: requesting global market data");
         return repeat(logger, global::list, config.coingecko);
     }});
 
-    if (!request_price.get() || !request_global_stats.get()) {
+    if (!request_price.get() || !request_global_stats.get() || !request_markets_data.get()) {
         logger->error("invalid coingecko data");
         return 1;
     }
 
     const auto summary = request_price.get().value();
     const auto global_market = request_global_stats.get().value();
+    const auto coin_list_with_market_data = request_markets_data.get().value();
 
     portfolio portfolio;
     for (auto [symbol, balance] : balances)
