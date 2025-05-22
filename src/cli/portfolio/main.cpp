@@ -6,6 +6,7 @@
 #include <format>
 #include <functional>
 #include <iterator>
+#include <limits>
 #include <map>
 #include <memory>
 #include <numeric>
@@ -106,6 +107,40 @@ constexpr auto pln = "pln";
 constexpr auto usd = "usd";
 constexpr auto btc = "btc";
 } // namespace symbol
+
+auto list_coins_with_infinity_supply(const std::vector<coingecko::v3::coins::market_data> &coins) {
+    using namespace coingecko::v3::coins;
+    using namespace std::ranges::views;
+    using namespace std::ranges;
+
+    auto condition = [](auto &&data) -> bool {
+        return !data.max_supply;
+    };
+
+    return coins | std::ranges::views::filter(std::move(condition)) | to<std::vector<market_data>>();
+}
+
+auto list_coins_with_finite_supply(const std::vector<coingecko::v3::coins::market_data> &coins) {
+    using namespace coingecko::v3::coins;
+    using namespace std::ranges::views;
+    using namespace std::ranges;
+
+    auto condition = [](auto &&data) -> bool {
+        return data.max_supply.has_value();
+    };
+
+    return coins | std::ranges::views::filter(std::move(condition)) | to<std::vector<market_data>>();
+}
+
+auto circulating_supply_ratio(coingecko::v3::coins::market_data &details) -> double {
+    if (details.circulating_supply && details.max_supply)
+        return *details.circulating_supply / *details.max_supply;
+
+    if (details.circulating_supply && details.total_supply)
+        return *details.circulating_supply / *details.total_supply;
+
+    return 0.0;
+}
 
 auto main(int argc, char **argv) -> int {
     auto logger = spdlog::stdout_color_mt("portfolio");
@@ -350,6 +385,29 @@ auto main(int argc, char **argv) -> int {
     const auto fmt_portfolio_24h_gain_vs_total_tmk = format::percent(portfolio_24h_change - global_market.market_cap_change_percentage_24h_usd, -5, 5);
     const auto fmt_total_market_cap = fmt::format("{:.3f} T", global_market.total_market_cap.at(symbol::usd) / short_scales::trillion);
     const auto fmt_total_market_cap_24h_change = format::percent(global_market.market_cap_change_percentage_24h_usd, -5, 5);
+
+    logger->info("\n+ assets with infinity supply:");
+    for (auto &&[asset, _] : to_map(list_coins_with_infinity_supply(coin_list_with_market_data)))
+        logger->info(" -> {}", asset);
+
+    auto coin_distribution = list_coins_with_finite_supply(coin_list_with_market_data);
+    std::ranges::sort(coin_distribution, [](auto &&lhs, auto &&rhs) {
+        return circulating_supply_ratio(lhs) > circulating_supply_ratio(rhs);
+    });
+
+    logger->info("\n+ assets with finite supply:");
+    const auto shares_mapping = shares::to_map(shares);
+
+    for (auto &&asset : coin_distribution) {
+        const auto coin_supply_ratio = circulating_supply_ratio(asset);
+        const auto fmt_coin_supply_ratio = format::percent(coin_supply_ratio * 100.00, 0.00, 100.00);
+
+        const auto value = price(asset.id, config.preferred_currency).value().second;
+        const auto price = format::price(value, config) + format::to_symbol(config.preferred_currency);
+        const auto price_linear_devaluation = format::price(value * coin_supply_ratio, config) + format::to_symbol(config.preferred_currency);
+
+        logger->info(" -> {:>8}, asset: {}, linear devaluation: {} -> {}", fmt_coin_supply_ratio, asset.id, price, price_linear_devaluation);
+    }
 
     logger->info("\n+ additional:");
     logger->info(" -> next halving approx.: {}", fmt_next_halving);
