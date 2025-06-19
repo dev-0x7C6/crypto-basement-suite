@@ -6,7 +6,6 @@
 #include <format>
 #include <functional>
 #include <iterator>
-#include <limits>
 #include <map>
 #include <memory>
 #include <numeric>
@@ -30,8 +29,11 @@
 #include <libcoingecko/v3/global/global.hpp>
 #include <libcoingecko/v3/simple/price.hpp>
 
+#include "chain/algorand.hpp"
 #include "chain/bitcoin.hpp"
 #include "chain/cardano.hpp"
+#include "chain/hedera.hpp"
+
 #include "cli/cli.hpp"
 #include "common/share.hpp"
 #include "common/short_scales.hpp"
@@ -108,13 +110,23 @@ constexpr auto usd = "usd";
 constexpr auto btc = "btc";
 } // namespace symbol
 
+auto circulating_supply_ratio(const coingecko::v3::coins::market_data &details) -> std::optional<double> {
+    if (details.circulating_supply && details.max_supply)
+        return *details.circulating_supply / *details.max_supply;
+
+    if (details.circulating_supply && details.total_supply)
+        return *details.circulating_supply / *details.total_supply;
+
+    return {};
+}
+
 auto list_coins_with_infinity_supply(const std::vector<coingecko::v3::coins::market_data> &coins) {
     using namespace coingecko::v3::coins;
     using namespace std::ranges::views;
     using namespace std::ranges;
 
     auto condition = [](auto &&data) -> bool {
-        return !data.max_supply;
+        return !data.max_supply.has_value();
     };
 
     return coins | std::ranges::views::filter(std::move(condition)) | to<std::vector<market_data>>();
@@ -130,16 +142,6 @@ auto list_coins_with_finite_supply(const std::vector<coingecko::v3::coins::marke
     };
 
     return coins | std::ranges::views::filter(std::move(condition)) | to<std::vector<market_data>>();
-}
-
-auto circulating_supply_ratio(coingecko::v3::coins::market_data &details) -> double {
-    if (details.circulating_supply && details.max_supply)
-        return *details.circulating_supply / *details.max_supply;
-
-    if (details.circulating_supply && details.total_supply)
-        return *details.circulating_supply / *details.total_supply;
-
-    return 0.0;
 }
 
 auto main(int argc, char **argv) -> int {
@@ -168,7 +170,8 @@ auto main(int argc, char **argv) -> int {
     const map<string, chain::callback> wallet_balances{
         {"cardano", chain::cardano::balance},
         {"bitcoin", chain::bitcoin::balance},
-    };
+        {"hedera-hashgraph", chain::hedera::balance},
+        {"algorand", chain::algorand::balance}};
 
     const map<string, chain::callback> wallet_assets{
         {"cardano", chain::cardano::assets},
@@ -224,7 +227,7 @@ auto main(int argc, char **argv) -> int {
         return repeat(logger, coins::markets, //
             coins::markets_query{
                 .vs_currency = symbol::btc,
-                .ids = balances | view::keys | rng::to<std::set<string>>(),
+                .ids = balances | view::keys | rng::to<set<string>>(),
             },
             config.coingecko);
     }});
@@ -387,8 +390,23 @@ auto main(int argc, char **argv) -> int {
     const auto fmt_total_market_cap_24h_change = format::percent(global_market.market_cap_change_percentage_24h_usd, -5, 5);
 
     logger->info("\n+ assets with infinity supply:");
-    for (auto &&[asset, _] : to_map(list_coins_with_infinity_supply(coin_list_with_market_data)))
-        logger->info(" -> {}", asset);
+    const auto details = to_map(coin_list_with_market_data);
+
+    auto coin_1_distribution = list_coins_with_infinity_supply(coin_list_with_market_data);
+    std::ranges::sort(coin_1_distribution, [](auto &&lhs, auto &&rhs) {
+        return circulating_supply_ratio(lhs) > circulating_supply_ratio(rhs);
+    });
+
+    for (auto &&asset : coin_1_distribution) {
+        const auto coin_supply_ratio = circulating_supply_ratio(asset);
+        const auto fmt_coin_supply_ratio = format::percent(coin_supply_ratio.value_or(0) * 100.00, 0.00, 100.00);
+
+        const auto value = price(asset.id, config.preferred_currency).value().second;
+        const auto price = format::price(value, config) + format::to_symbol(config.preferred_currency);
+        const auto price_linear_devaluation = format::price(value * coin_supply_ratio.value_or(0), config) + format::to_symbol(config.preferred_currency);
+
+        logger->info(" -> {:>8}, asset: {}, linear devaluation: {} -> {}", fmt_coin_supply_ratio, asset.id, price, price_linear_devaluation);
+    }
 
     auto coin_distribution = list_coins_with_finite_supply(coin_list_with_market_data);
     std::ranges::sort(coin_distribution, [](auto &&lhs, auto &&rhs) {
@@ -400,11 +418,11 @@ auto main(int argc, char **argv) -> int {
 
     for (auto &&asset : coin_distribution) {
         const auto coin_supply_ratio = circulating_supply_ratio(asset);
-        const auto fmt_coin_supply_ratio = format::percent(coin_supply_ratio * 100.00, 0.00, 100.00);
+        const auto fmt_coin_supply_ratio = format::percent(coin_supply_ratio.value_or(0) * 100.00, 0.00, 100.00);
 
         const auto value = price(asset.id, config.preferred_currency).value().second;
         const auto price = format::price(value, config) + format::to_symbol(config.preferred_currency);
-        const auto price_linear_devaluation = format::price(value * coin_supply_ratio, config) + format::to_symbol(config.preferred_currency);
+        const auto price_linear_devaluation = format::price(value * coin_supply_ratio.value_or(0), config) + format::to_symbol(config.preferred_currency);
 
         logger->info(" -> {:>8}, asset: {}, linear devaluation: {} -> {}", fmt_coin_supply_ratio, asset.id, price, price_linear_devaluation);
     }
@@ -427,13 +445,13 @@ auto main(int argc, char **argv) -> int {
 
     logger->info("\n+ total");
 
-    std::set<std::string> hide_ranks{symbol::btc};
-    std::map<std::string, int> preferred_decimal_count{{symbol::btc, 8}};
+    set<string> hide_ranks{symbol::btc};
+    map<string, int> preferred_decimal_count{{symbol::btc, 8}};
 
     std::vector<std::pair<std::string, double>> total_sorted;
     auto total_vec = total | rng::to<std::vector<std::pair<std::string, double>>>();
 
-    const static std::map<std::string, int> sort_rank{
+    const static map<string, int> sort_rank{
         {symbol::btc, 2},
         {config.preferred_currency, 1},
     };

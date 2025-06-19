@@ -15,6 +15,7 @@ auto parse(int argc, char **argv) -> std::expected<configuration, int> {
     app.add_option("-p,--preferred-currency", config.preferred_currency, "show value in currency");
     app.add_option("--blockfrost-api-key", config.blockfrost.key, "https://blockfrost.io/");
     app.add_option("--coingecko-api-key", config.coingecko.key, "https://www.coingecko.com/en/api");
+    app.add_option("--scalar-api-key", config.scalar_api_key, "https://algorand-algod.apidocumentation.com");
 
     app.add_flag("-g,--gui", config.show_gui);
     app.add_flag("--hide-balances", config.hide.balances, "hide balances");
