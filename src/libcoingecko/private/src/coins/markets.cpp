@@ -63,11 +63,6 @@ auto markets(const markets_query &query, const options &opts) -> std::expected<s
         ::set(object, "roi", data.roi);
         ::set(object, "last_updated", data.last_updated);
 
-        if (data.max_supply)
-            data.supply_ratio = data.circulating_supply.value_or(0) / data.max_supply.value();
-        else
-            data.supply_ratio = data.circulating_supply.value_or(0) / data.total_supply.value_or(0);
-
         ret.emplace_back(std::move(data));
     }
 

@@ -59,9 +59,6 @@ struct market_data {
     double atl_change_percentage{};
     std::optional<double> roi;
     std::string last_updated;
-
-    // additional
-    double supply_ratio{};
 };
 
 auto markets(const markets_query &query = {}, const options &opts = {}) -> std::expected<std::vector<market_data>, error>;
