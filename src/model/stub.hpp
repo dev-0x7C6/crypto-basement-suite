@@ -2,8 +2,8 @@
 
 #include "model.hpp"
 
-#include <vector>
 #include <chrono>
+#include <cmath>
 
 using namespace std::chrono_literals;
 
