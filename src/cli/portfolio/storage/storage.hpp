@@ -1,11 +1,12 @@
 #pragma once
 
 #include <common/share.hpp>
+#include <libcoingecko/v3/simple/price.hpp>
 
 #include <filesystem>
 
-namespace json {
+namespace storage {
 
-bool save(const portfolio &portfolio, const std::filesystem::path &path);
+auto save(const portfolio &portfolio, const coingecko::v3::simple::price::prices &summary) -> bool;
 
 }
