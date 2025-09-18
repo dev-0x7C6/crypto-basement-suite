@@ -1,12 +1,14 @@
 #include "storage.hpp"
 
 #include <fstream>
+#include <filesystem>
+
 #include <nlohmann/json.hpp>
 
 using namespace nlohmann;
 using namespace std;
 
-auto storage::save(const portfolio &portfolio, const coingecko::v3::simple::price::prices &summary) -> bool {
+auto storage::save(const portfolio &portfolio, const coingecko::v3::simple::price::prices &summary) -> void {
     auto save_portfolio_snapshot = [](const ::portfolio &portfolio, const coingecko::v3::simple::price::prices &summary) {
         json portfolio_json_array = json::array();
         map<string, double> total;
