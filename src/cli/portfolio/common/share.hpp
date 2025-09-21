@@ -31,6 +31,7 @@ using shares_vec = std::vector<share>;
 using shares_map = std::map<std::string, share>;
 
 using query_price_fn = std::function<std::optional<currency_quantity>(const std::string &asset)>;
+using query_24h_change_fn = std::function<double(const std::string &asset)>;
 
 auto calculate(const portfolio &portfolio, query_price_fn &&query_price, double total) -> std::expected<shares_vec, error>;
 auto to_map(const shares_vec &) -> shares_map;

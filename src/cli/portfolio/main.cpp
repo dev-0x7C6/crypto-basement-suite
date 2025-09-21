@@ -33,6 +33,7 @@
 #include "chain/hedera.hpp"
 
 #include "cli/cli.hpp"
+#include "common/configuration.hpp"
 #include "common/share.hpp"
 #include "common/short_scales.hpp"
 #include "extensions/btc-halving.hpp"
@@ -41,9 +42,12 @@
 #include "helpers/formatter.hpp"
 #include "helpers/threading.hpp"
 #include "libcoingecko/v3/coins/markets.hpp"
+#include "printers/print-day-change.hpp"
+#include "printers/print-shares.hpp"
 #include "readers/balances.hpp"
 #include "readers/wallets.hpp"
 #include "storage/storage.hpp"
+
 #include <rest/requests.hpp>
 
 using namespace csv;
@@ -140,7 +144,7 @@ auto list_coins_with_finite_supply(const std::vector<coingecko::v3::coins::marke
         return data.max_supply.has_value();
     };
 
-    return coins | std::ranges::views::filter(std::move(condition)) | to<std::vector<market_data>>();
+    return coins | filter(std::move(condition)) | to<vector<market_data>>();
 }
 
 auto main(int argc, char **argv) -> int {
@@ -187,7 +191,7 @@ auto main(int argc, char **argv) -> int {
     for (auto &&request : balance_reqs) {
         const auto value = request.get();
         if (!value.empty())
-            std::move(value.begin(), value.end(), std::back_inserter(balances));
+            move(value.begin(), value.end(), back_inserter(balances));
     }
 
     for (auto &&request : assets_reqs) {
@@ -204,7 +208,7 @@ auto main(int argc, char **argv) -> int {
             logger->info("  quantity: {}", quote(quantity));
             logger->info("   divisor: {}", quote(div));
 
-            balances.emplace_back(std::make_pair(info, quantity / div));
+            balances.emplace_back(make_pair(info, quantity / div));
         }
     }
 
@@ -215,7 +219,7 @@ auto main(int argc, char **argv) -> int {
         logger->info("coingecko::v3: requesting prices");
         return repeat(logger, simple::price::query, //
             simple::price::parameters{
-                .ids = balances | view::keys | rng::to<std::set<string>>(),
+                .ids = balances | view::keys | rng::to<set<string>>(),
                 .vs_currencies = {symbol::usd, symbol::btc, symbol::eur, symbol::pln, config.preferred_currency},
             },
             config.coingecko);
@@ -287,11 +291,11 @@ auto main(int argc, char **argv) -> int {
 
     auto shares = shares::calculate(portfolio, price_in_btc, total[symbol::btc]).value();
 
-    auto get_24h_change = [&](const std::string &asset) {
+    auto get_24h_change = [&](const string &asset) {
         return _24h_change.at(asset);
     };
 
-    auto calculate_portfolio_change = [](const std::map<std::string, double> &change_provider, const shares::shares_vec &shares, std::set<std::string> filter = {}) {
+    auto calculate_portfolio_change = [](const map<string, double> &change_provider, const shares::shares_vec &shares, set<string> filter = {}) {
         auto change{0.0};
         auto count{0};
 
@@ -306,40 +310,8 @@ auto main(int argc, char **argv) -> int {
         return change / count;
     };
 
-    rng::sort(shares, [&](auto &&l, auto &&r) {
-        return get_24h_change(l.asset) > get_24h_change(r.asset);
-    });
-
-    const auto preferred_currency_symbol = format::to_symbol(config.preferred_currency);
-
-    logger->info("\n+ 24h change (sorted):");
-    for (auto &&share : shares) {
-        const auto percent = format::percent(get_24h_change(share.asset));
-        const auto value = price(share.asset, config.preferred_currency).value().second;
-        const auto fvalue = format::price(value, {});
-        logger->info(" {:>30}: {} [{}{}]",
-            share.asset,
-            percent,
-            fvalue,
-            preferred_currency_symbol);
-    }
-
-    rng::sort(shares, std::greater<shares::share>());
-
-    logger->info("\n+ shares");
-    for (auto &&s : shares) {
-        const auto value = price(s.asset, config.preferred_currency).value().second * s.quantity;
-        const auto percent = format::percent(get_24h_change(s.asset));
-        const auto share = format::share(s.share, config);
-        const auto price = format::price(value, config);
-
-        logger->info(" {:>20}: {}, {}{}, 24h: {}",
-            s.asset,
-            share,
-            price,
-            preferred_currency_symbol,
-            percent);
-    }
+    printers::day_change(shares, price_in_btc, get_24h_change, config, logger);
+    printers::shares(shares, price_in_btc, get_24h_change, config, logger);
 
     const auto bitcoin_24h_change = _24h_change["bitcoin"];
     const auto next_halving_aprox = bitcoin::halving::trivial_next_halving_approximation().front();
@@ -413,8 +385,8 @@ auto main(int argc, char **argv) -> int {
     set<string> hide_ranks{symbol::btc};
     map<string, int> preferred_decimal_count{{symbol::btc, 8}};
 
-    std::vector<std::pair<std::string, double>> total_sorted;
-    auto total_vec = total | rng::to<std::vector<std::pair<std::string, double>>>();
+    vector<pair<string, double>> total_sorted;
+    auto total_vec = total | rng::to<vector<pair<string, double>>>();
 
     const static map<string, int> sort_rank{
         {symbol::btc, 2},
