@@ -1,37 +1,19 @@
-#include <algorithm>
-#include <chrono>
-#include <cstdint>
-#include <expected>
-#include <format>
-#include <functional>
-#include <iterator>
-#include <map>
-#include <memory>
-#include <numeric>
-#include <optional>
-#include <ranges>
-#include <string>
-#include <thread>
-#include <utility>
-#include <vector>
-
 #include <CLI/CLI.hpp>
+#include <csv.hpp>
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
-
-#include <csv.hpp>
 #include <types.hpp>
 
 #include <libblockfrost/public/includes/libblockfrost/v0/balance.hpp>
 #include <libcoingecko/v3/coins/list.hpp>
 #include <libcoingecko/v3/global/global.hpp>
 #include <libcoingecko/v3/simple/price.hpp>
+#include <rest/requests.hpp>
 
 #include "chain/algorand.hpp"
 #include "chain/bitcoin.hpp"
 #include "chain/cardano.hpp"
 #include "chain/hedera.hpp"
-
 #include "cli/cli.hpp"
 #include "common/configuration.hpp"
 #include "common/share.hpp"
@@ -47,8 +29,6 @@
 #include "readers/balances.hpp"
 #include "readers/wallets.hpp"
 #include "storage/storage.hpp"
-
-#include <rest/requests.hpp>
 
 using namespace csv;
 using namespace coingecko::v3;
