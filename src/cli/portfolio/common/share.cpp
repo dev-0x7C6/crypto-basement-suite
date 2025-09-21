@@ -1,5 +1,7 @@
 #include "share.hpp"
 
+#include <algorithm>
+#include <functional>
 #include <ranges>
 
 using namespace shares;
@@ -21,6 +23,7 @@ auto shares::calculate(const portfolio &portfolio, query_price_fn &&query_price,
         });
     }
 
+    std::ranges::sort(ret, std::greater<shares::share>());
     return ret;
 }
 
