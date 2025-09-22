@@ -1,5 +1,6 @@
 #include <CLI/CLI.hpp>
 #include <csv.hpp>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <types.hpp>
@@ -26,6 +27,8 @@
 #include "libcoingecko/v3/coins/markets.hpp"
 #include "printers/print-day-change.hpp"
 #include "printers/print-shares.hpp"
+#include "printers/print-summary.hpp"
+#include "printers/print-supply.hpp"
 #include "readers/balances.hpp"
 #include "readers/wallets.hpp"
 #include "storage/storage.hpp"
@@ -72,59 +75,10 @@ auto quote(auto &&value) -> std::string {
     return std::format("'{}'", std::forward<decltype(value)>(value));
 }
 
-template <typename K, typename V>
-auto value_or(const std::map<K, V> &in, const K &key, V &&v) {
-    try {
-        return in.at(key);
-    } catch (...) {}
-    return std::forward<V>(v);
-}
-
 auto average(std::ranges::range auto rng) {
     const auto count = std::ranges::distance(rng);
     const auto value = std::accumulate(std::begin(rng), std::end(rng), 0);
     return value / count;
-}
-
-namespace symbol {
-constexpr auto eur = "eur";
-constexpr auto pln = "pln";
-constexpr auto usd = "usd";
-constexpr auto btc = "btc";
-} // namespace symbol
-
-auto circulating_supply_ratio(const coingecko::v3::coins::market_data &details) -> std::optional<double> {
-    if (details.circulating_supply && details.max_supply)
-        return *details.circulating_supply / *details.max_supply;
-
-    if (details.circulating_supply && details.total_supply)
-        return *details.circulating_supply / *details.total_supply;
-
-    return {};
-}
-
-auto list_coins_with_infinity_supply(const std::vector<coingecko::v3::coins::market_data> &coins) {
-    using namespace coingecko::v3::coins;
-    using namespace std::ranges::views;
-    using namespace std::ranges;
-
-    auto condition = [](auto &&data) -> bool {
-        return !data.max_supply.has_value();
-    };
-
-    return coins | std::ranges::views::filter(std::move(condition)) | to<std::vector<market_data>>();
-}
-
-auto list_coins_with_finite_supply(const std::vector<coingecko::v3::coins::market_data> &coins) {
-    using namespace coingecko::v3::coins;
-    using namespace std::ranges::views;
-    using namespace std::ranges;
-
-    auto condition = [](auto &&data) -> bool {
-        return data.max_supply.has_value();
-    };
-
-    return coins | filter(std::move(condition)) | to<vector<market_data>>();
 }
 
 auto main(int argc, char **argv) -> int {
@@ -292,6 +246,8 @@ auto main(int argc, char **argv) -> int {
 
     printers::day_change(shares, price_in_btc, get_24h_change, config, logger);
     printers::shares(shares, price_in_btc, get_24h_change, config, logger);
+    printers::finite_supply(coin_list_with_market_data, price_in_btc, config, logger);
+    printers::infinite_supply(coin_list_with_market_data, price_in_btc, config, logger);
 
     const auto bitcoin_24h_change = _24h_change["bitcoin"];
     const auto next_halving_aprox = bitcoin::halving::trivial_next_halving_approximation().front();
@@ -305,44 +261,6 @@ auto main(int argc, char **argv) -> int {
     const auto fmt_portfolio_24h_gain_vs_total_tmk = format::percent(portfolio_24h_change - global_market.market_cap_change_percentage_24h_usd, -5, 5);
     const auto fmt_total_market_cap = fmt::format("{:.3f} T", global_market.total_market_cap.at(symbol::usd) / short_scales::trillion);
     const auto fmt_total_market_cap_24h_change = format::percent(global_market.market_cap_change_percentage_24h_usd, -5, 5);
-
-    logger->info("\n+ assets with infinity supply:");
-    const auto details = to_map(coin_list_with_market_data);
-
-    auto coin_1_distribution = list_coins_with_infinity_supply(coin_list_with_market_data);
-    std::ranges::sort(coin_1_distribution, [](auto &&lhs, auto &&rhs) {
-        return circulating_supply_ratio(lhs) > circulating_supply_ratio(rhs);
-    });
-
-    for (auto &&asset : coin_1_distribution) {
-        const auto coin_supply_ratio = circulating_supply_ratio(asset);
-        const auto fmt_coin_supply_ratio = format::percent(coin_supply_ratio.value_or(0) * 100.00, 0.00, 100.00);
-
-        const auto value = price(asset.id, config.preferred_currency).value().second;
-        const auto price = format::price(value, config) + format::to_symbol(config.preferred_currency);
-        const auto price_linear_devaluation = format::price(value * coin_supply_ratio.value_or(0), config) + format::to_symbol(config.preferred_currency);
-
-        logger->info(" -> {:>8}, asset: {}, linear devaluation: {} -> {}", fmt_coin_supply_ratio, asset.id, price, price_linear_devaluation);
-    }
-
-    auto coin_distribution = list_coins_with_finite_supply(coin_list_with_market_data);
-    std::ranges::sort(coin_distribution, [](auto &&lhs, auto &&rhs) {
-        return circulating_supply_ratio(lhs) > circulating_supply_ratio(rhs);
-    });
-
-    logger->info("\n+ assets with finite supply:");
-    const auto shares_mapping = shares::to_map(shares);
-
-    for (auto &&asset : coin_distribution) {
-        const auto coin_supply_ratio = circulating_supply_ratio(asset);
-        const auto fmt_coin_supply_ratio = format::percent(coin_supply_ratio.value_or(0) * 100.00, 0.00, 100.00);
-
-        const auto value = price(asset.id, config.preferred_currency).value().second;
-        const auto price = format::price(value, config) + format::to_symbol(config.preferred_currency);
-        const auto price_linear_devaluation = format::price(value * coin_supply_ratio.value_or(0), config) + format::to_symbol(config.preferred_currency);
-
-        logger->info(" -> {:>8}, asset: {}, linear devaluation: {} -> {}", fmt_coin_supply_ratio, asset.id, price, price_linear_devaluation);
-    }
 
     logger->info("\n+ additional:");
     logger->info(" -> next halving approx.: {}", fmt_next_halving);
@@ -360,30 +278,7 @@ auto main(int argc, char **argv) -> int {
     logger->info("\n+ portfolio vs global market");
     logger->info(" -> {}", fmt_portfolio_24h_gain_vs_total_tmk);
 
-    logger->info("\n+ total");
-
-    set<string> hide_ranks{symbol::btc};
-    map<string, int> preferred_decimal_count{{symbol::btc, 8}};
-
-    vector<pair<string, double>> total_sorted;
-    auto total_vec = total | rng::to<vector<pair<string, double>>>();
-
-    const static map<string, int> sort_rank{
-        {symbol::btc, 2},
-        {config.preferred_currency, 1},
-    };
-
-    rng::sort(total_vec, [&](auto &&lhs, auto &&rhs) {
-        return value_or(sort_rank, lhs.first, 0) > value_or(sort_rank, rhs.first, 0);
-    });
-
-    for (auto &&[currency, valuation] : total_vec) {
-        const auto demical = value_or(preferred_decimal_count, currency, 2);
-        const auto hide_rank = hide_ranks.contains(currency);
-        const auto price = format::formatted_price(valuation, config, hide_rank, demical);
-        const auto symbol = format::to_symbol(currency);
-        logger->info(" -> {} {}", price, symbol);
-    }
+    printers::summary(total, config, logger);
 
     if (config.show_gui)
         return show_gui_charts(argc, argv, config, shares, summary);
