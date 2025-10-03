@@ -209,8 +209,6 @@ auto main(int argc, char **argv) -> int {
         }
     }
 
-    storage::save(portfolio, summary);
-
     auto price = [&summary](const string &asset, const string &currency) -> optional<currency_quantity> {
         try {
             return currency_quantity{currency, summary.at(asset).at(currency).value};
@@ -221,6 +219,10 @@ auto main(int argc, char **argv) -> int {
 
     auto price_in_btc = [&price](const string &asset) {
         return price(asset, symbol::btc);
+    };
+
+    auto price_in_preferred = [&price, &config](const string &asset) {
+        return price(asset, config.preferred_currency);
     };
 
     auto shares = shares::calculate(portfolio, price_in_btc, total[symbol::btc]).value();
@@ -244,10 +246,12 @@ auto main(int argc, char **argv) -> int {
         return change / count;
     };
 
-    printers::day_change(shares, price_in_btc, get_24h_change, config, logger);
-    printers::shares(shares, price_in_btc, get_24h_change, config, logger);
-    printers::finite_supply(coin_list_with_market_data, price_in_btc, config, logger);
-    printers::infinite_supply(coin_list_with_market_data, price_in_btc, config, logger);
+    storage::save(portfolio, summary);
+
+    printers::day_change(shares, price_in_preferred, get_24h_change, config, logger);
+    printers::shares(shares, price_in_preferred, get_24h_change, config, logger);
+    printers::finite_supply(coin_list_with_market_data, price_in_preferred, config, logger);
+    printers::infinite_supply(coin_list_with_market_data, price_in_preferred, config, logger);
 
     const auto bitcoin_24h_change = _24h_change["bitcoin"];
     const auto next_halving_aprox = bitcoin::halving::trivial_next_halving_approximation().front();
