@@ -7,7 +7,18 @@
 
 namespace {
 
-size_t curl_append_stdstring(void *content, size_t size, size_t blocks, void *userp) {
+auto is_request_ok(const CURLcode status) {
+    return CURLE_OK == status;
+}
+
+auto to_slist(const ::curl::vec_headers &headers) -> ::curl_slist * {
+    ::curl_slist *ret{nullptr};
+    for (auto &&header : headers)
+        ret = curl_slist_append(ret, header.c_str());
+    return ret;
+}
+
+auto curl_append_stdstring(void *content, size_t size, size_t blocks, void *userp) -> size_t {
     const auto content_size = size * blocks;
     auto data = reinterpret_cast<std::string *>(userp);
     data->append(reinterpret_cast<const char *>(content), content_size);
@@ -37,27 +48,22 @@ private:
 namespace curl {
 
 auto request(const std::string &url, const ::curl::vec_headers &headers) noexcept -> ::curl::content {
-    std::string content;
-
     raii::curl request;
     if (!request)
         return std::unexpected(CURLE_FAILED_INIT);
 
+    std::string content{};
+    content.reserve(4096);
+
     curl_easy_setopt(request, CURLOPT_URL, url.c_str());
     curl_easy_setopt(request, CURLOPT_WRITEFUNCTION, curl_append_stdstring);
     curl_easy_setopt(request, CURLOPT_WRITEDATA, &content);
-
-    if (!headers.empty()) {
-        struct curl_slist *list = nullptr;
-        for (auto &&header : headers)
-            list = curl_slist_append(list, header.c_str());
-
-        curl_easy_setopt(request, CURLOPT_HTTPHEADER, list);
-    }
+    curl_easy_setopt(request, CURLOPT_USERAGENT, "Mozilla/5.0 (X11; Linux x86_64; rv:146.0) Gecko/20100101 Firefox/146.0");
+    curl_easy_setopt(request, CURLOPT_HTTPHEADER, to_slist(headers));
 
     const auto status = curl_easy_perform(request);
 
-    if (CURLE_OK != status)
+    if (!is_request_ok(status))
         return std::unexpected(status);
 
     return content;
