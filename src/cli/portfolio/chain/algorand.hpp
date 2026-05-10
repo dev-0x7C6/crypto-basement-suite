@@ -1,15 +1,14 @@
 #pragma once
 
+#include <expected>
 #include <nlohmann/json.hpp>
 
 #include <spdlog/spdlog.h>
-#include <vector>
 
 #include "common/configuration.hpp"
 #include "helpers/threading.hpp"
+#include "interface/chain.hpp"
 #include "rest/requests.hpp"
-
-using shared_logger = std::shared_ptr<spdlog::logger>;
 
 namespace chain::algorand {
 
@@ -23,19 +22,19 @@ auto request(const std::string &url, const std::map<std::string, std::string> &h
     return nlohmann::json::parse(response.value());
 };
 
-auto balance(const shared_logger &logger, const std::string &addr, const configuration &config) -> task<std::vector<std::pair<std::string, double>>> {
-    return schedule(std::function<std::vector<std::pair<std::string, double>>()>{[addr, config]() -> std::vector<std::pair<std::string, double>> {
+auto balance(const shared_logger &logger, const std::string &addr, const configuration &config) -> task<chain::results> {
+    return schedule<chain::results>([addr, config]() -> chain::results {
         try {
             std::map<std::string, std::string> header;
             header["X-Algo-API-Token"] = config.scalar_api_key;
             auto response = request(std::format("https://mainnet-api.4160.nodely.dev/v2/accounts/{}", addr), std::move(header));
-            if (!response) return std::vector<std::pair<std::string, double>>{};
+            if (!response) return std::unexpected<chain::error>(chain::error::unable_to_query);
             const auto balance = response->at("amount").get<double>();
-            return {{"algorand", balance / std::pow(10.0, 6)}};
+            return std::map<std::string, double>{{std::string{"algorand"}, balance / std::pow(10.0, 6)}};
         } catch (...) {
-            return {{"algorand", 0.0}};
+            return std::unexpected(chain::error::data_unavailable);
         }
-    }});
+    });
 };
 
 } // namespace chain::algorand

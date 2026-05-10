@@ -23,6 +23,7 @@ target_link_libraries(cbs-portfolio
     CLI11::CLI11
     spdlog::spdlog
     nlohmann_json::nlohmann_json
+    simdjson::simdjson
     cbs-common
     Qt6::Core
     Qt6::Widgets

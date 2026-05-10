@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstddef>
-#include <memory>
+#include <expected>
 #include <ranges>
 
 #include <libblockfrost/public/includes/libblockfrost/v0/balance.hpp>
@@ -14,8 +14,7 @@
 
 #include "common/configuration.hpp"
 #include "helpers/threading.hpp"
-
-using shared_logger = std::shared_ptr<spdlog::logger>;
+#include "interface/chain.hpp"
 
 namespace chain::cardano {
 
@@ -49,32 +48,32 @@ auto success(const shared_logger &logger, const std::string &addr, const std::si
 } // namespace assets
 } // namespace log::request
 
-auto balance(const shared_logger &logger, const std::string &addr, const configuration &config) -> task<std::vector<std::pair<std::string, double>>> {
-    return schedule(std::function{[logger, addr, opts{config.blockfrost}]() -> std::vector<std::pair<std::string, double>> {
+auto balance(const shared_logger &logger, const std::string &addr, const configuration &config) -> task<chain::results> {
+    return schedule<chain::results>([logger, addr, opts{config.blockfrost}]() -> chain::results {
         log::request::balance::requested(logger, addr);
         const auto balance = blockfrost::v0::accounts_balance(addr, opts);
 
         if (!balance) {
             log::request::balance::failed(logger, addr);
-            return {{"cardano", 0.0}};
+            return std::unexpected(chain::error::unable_to_query);
         }
 
         log::request::balance::success(logger, addr, balance.value());
-        return {{"cardano", balance.value()}};
-    }});
+        return std::map<std::string, double>{{"cardano", balance.value()}};
+    });
 };
 
-auto assets(const shared_logger &logger, const std::string &addr, const configuration &config) -> task<std::vector<std::pair<std::string, double>>> {
+auto assets(const shared_logger &logger, const std::string &addr, const configuration &config) -> task<chain::results> {
     namespace rng = std::ranges;
 
-    return schedule(std::function{[logger, addr, opts{config.blockfrost}]() -> std::vector<std::pair<std::string, double>> {
+    return schedule<chain::results>([logger, addr, opts{config.blockfrost}]() -> chain::results {
         log::request::assets::requested(logger, addr);
 
         const auto ret = blockfrost::v0::accounts_assets_balance(addr, opts);
 
         if (!ret) {
             log::request::assets::failed(logger, addr);
-            return {};
+            return std::unexpected(chain::error::data_unavailable);
         }
 
         const auto &assets = ret.value();
@@ -83,16 +82,12 @@ auto assets(const shared_logger &logger, const std::string &addr, const configur
 
         auto conversion = assets | rng::views::transform([](const blockfrost::v0::asset &v) {
             return std::make_pair(v.unit, v.quantity);
-        }) | rng::to<std::vector>();
+        }) | rng::to<std::map>();
 
         for (auto &&[asset, quantity] : conversion)
             logger->info("blockfrost::v0: {}: asset {}, quantity {}", addr, asset, quantity);
 
         return conversion;
-    }});
+    });
 };
 } // namespace chain::cardano
-
-namespace chain {
-using callback = std::function<task<std::vector<std::pair<std::string, double>>>(const shared_logger &, const std::string &, const configuration &)>;
-}

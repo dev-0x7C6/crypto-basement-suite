@@ -15,6 +15,7 @@
 #include "chain/bitcoin.hpp"
 #include "chain/cardano.hpp"
 #include "chain/hedera.hpp"
+#include "chain/interface/chain.hpp"
 #include "cli/cli.hpp"
 #include "common/configuration.hpp"
 #include "common/share.hpp"
@@ -37,6 +38,7 @@ using namespace csv;
 using namespace coingecko::v3;
 using namespace std;
 using namespace std::chrono_literals;
+using namespace std::this_thread;
 using namespace nlohmann;
 
 template <typename Callable, typename... Ts>
@@ -46,7 +48,7 @@ auto repeat(const shared_ptr<spdlog::logger> &logger, Callable &callable, Ts &&.
         if (ret)
             return ret;
         logger->info("retry, waiting 1min 30secs for coingecko");
-        this_thread::sleep_for(1min + 30s);
+        sleep_for(1min + 30s);
     }
 }
 
@@ -96,8 +98,8 @@ auto main(int argc, char **argv) -> int {
     auto balances = readers::balances_from_csv(config.balances);
     auto wallets = readers::wallets_from_csv(config.track_wallets);
 
-    vector<task<vector<pair<string, double>>>> balance_reqs;
-    vector<task<vector<pair<string, double>>>> assets_reqs;
+    vector<task<chain::results>> balance_reqs;
+    vector<task<chain::results>> assets_reqs;
     map<string, string> contract_to_symbol;
 
     using namespace coingecko::v3;
@@ -123,14 +125,12 @@ auto main(int argc, char **argv) -> int {
     }
 
     for (auto &&request : balance_reqs) {
-        const auto value = request.get();
-        if (!value.empty())
-            move(value.begin(), value.end(), back_inserter(balances));
+        const auto result = request.get();
+        move(result.value().begin(), result.value().end(), back_inserter(balances));
     }
 
-    for (auto &&request : assets_reqs) {
-        const auto assets = request.get();
-        for (auto &&[contract, quantity] : assets) {
+    for (auto &&request : assets_reqs)
+        for (auto &&[contract, quantity] : request.get().value()) {
             if (!contract_to_symbol.contains(contract)) continue;
             if (!cardano_token_registry.contains(contract)) continue;
 
@@ -144,7 +144,6 @@ auto main(int argc, char **argv) -> int {
 
             balances.emplace_back(make_pair(info, quantity / div));
         }
-    }
 
     namespace rng = std::ranges;
     namespace view = std::ranges::views;
