@@ -10,13 +10,17 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+add_compile_options(-freflection)
+
 include(GNUInstallDirs)
 
 find_package(CLI11 REQUIRED)
 find_package(benchmark REQUIRED)
 find_package(nlohmann_json REQUIRED)
+find_package(simdjson REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(CURL REQUIRED)
 find_package(PkgConfig REQUIRED)
 
-add_subdirectory("src")
+add_subdirectory(src)
+add_subdirectory(external)
