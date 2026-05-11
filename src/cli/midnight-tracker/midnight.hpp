@@ -109,7 +109,7 @@ constexpr auto operator+=(stats &stat, const stats &other) noexcept {
     return reflection::plus_eq_operator(stat, other);
 }
 
-auto extract_thaw(const midnight::airdrop::thaw &thaw) -> midnight::airdrop::stats {
+constexpr auto extract_thaw(const midnight::airdrop::thaw &thaw) noexcept -> midnight::airdrop::stats {
     midnight::airdrop::stats stats{};
     stats.total += thaw.amount;
     stats.total_thaw_count++;
@@ -139,7 +139,7 @@ auto extract_thaw(const midnight::airdrop::thaw &thaw) -> midnight::airdrop::sta
     return stats;
 }
 
-auto extract_stats(const midnight::airdrop::addresses_vec &addresses) -> midnight::airdrop::stats {
+constexpr auto extract_stats(const midnight::airdrop::addresses_vec &addresses) noexcept -> midnight::airdrop::stats {
     midnight::airdrop::stats stats{};
 
     for (auto &&addr : addresses)
