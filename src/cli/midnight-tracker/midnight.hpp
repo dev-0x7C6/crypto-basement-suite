@@ -52,7 +52,7 @@ constexpr auto count_redeemable_thaws(const std::vector<thaw> &thaws) noexcept {
     });
 }
 
-constexpr auto accumulate_redeemable_thaws(const std::vector<thaw> &thaws) -> double {
+constexpr auto accumulate_redeemable_thaws(const std::vector<thaw> &thaws) noexcept -> double {
     double result{};
     for (auto &&thaw : thaws)
         if (is_confirmed(thaw) || is_redeemable(thaw))
@@ -111,7 +111,7 @@ constexpr auto operator+=(stats &stat, const stats &other) noexcept {
 
 constexpr auto extract_thaw(const midnight::airdrop::thaw &thaw) noexcept -> midnight::airdrop::stats {
     midnight::airdrop::stats stats{};
-    stats.total += thaw.amount;
+    stats.total += is_skipped(thaw) ? 0 : thaw.amount;
     stats.total_thaw_count++;
 
     if (is_redeemable(thaw)) {
